@@ -1,0 +1,8 @@
+torch>=2.0.0
+torchaudio>=2.0.0
+librosa>=0.10.0
+torchcrepe>=0.0.20
+scipy>=1.10.0
+numpy<2.0.0
+matplotlib>=3.7.0
+tqdm>=4.65.0

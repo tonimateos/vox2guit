@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual Environment (Local Dependencies)
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Checkpoints & Data
+*.pt
+*.wav
+checkpoints/
+data/
