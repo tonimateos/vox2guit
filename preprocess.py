@@ -128,6 +128,15 @@ def preprocess_dataset(input_dir: str, output_dir: str):
     warnings.filterwarnings("ignore") # Ignore some torchaudio warnings
 
     for fpath in tqdm(files):
+        fname = os.path.basename(fpath).replace('.wav', '.pt')
+        save_path = os.path.join(output_dir, fname)
+        
+        # Resume functionality: skip if file already exists
+        if os.path.exists(save_path):
+            continue
+
+        print(f"\nProcessing: {os.path.basename(fpath)}")
+        
         # Load
         audio, sr = torchaudio.load(fpath)
         # Mix to mono
@@ -149,9 +158,6 @@ def preprocess_dataset(input_dir: str, output_dir: str):
             # Audio len = Frames * hop_length
             num_frames = f0.shape[1]
             audio_target = audio[:, :num_frames * 160]
-            
-            fname = os.path.basename(fpath).replace('.wav', '.pt')
-            save_path = os.path.join(output_dir, fname)
             
             torch.save({
                 'f0': f0.cpu(),
