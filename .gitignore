@@ -16,3 +16,4 @@ venv/
 .plan*
 checkpoints/
 data/
+wandb/
