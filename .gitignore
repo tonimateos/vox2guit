@@ -13,5 +13,6 @@ venv/
 # Checkpoints & Data
 *.pt
 *.wav
+.plan*
 checkpoints/
 data/
