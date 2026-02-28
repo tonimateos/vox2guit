@@ -60,6 +60,29 @@ We use **W&B** for experiment tracking. It allows you to monitor loss and listen
     ./venv/bin/python train.py --data_dir data/processed/guitarset --batch_size 16 --epochs 100
     ```
 
+## 📈 Monitoring & Debugging
+
+Training a neural synthesizer is an iterative process. Here is how to keep an eye on your model's progress:
+
+### 1. Weights & Biases (Remote)
+Once training starts, W&B provides a real-time dashboard at the URL printed in your terminal.
+- **Loss Curves**: Monitor `train_loss`. A steady decrease indicates the model is learning the spectral features.
+- **Audio Samples**: Every 5 epochs, the model uploads an audio reconstruction. Listen to these to hear the timbre evolve from noise to guitar.
+- **Run Management**: Each execution gets a random name (e.g., `solar-wave-10`). You can delete failed/interrupted runs from the W&B project settings to keep your dashboard clean.
+
+### 2. Local Monitoring
+- **Progress Bar (`tqdm`)**: Shows instantaneous loss and processing speed (iterations per second) in your terminal.
+- **Checkpoints**: High-fidelity model states are saved to `checkpoints/model_epoch_N.pth`.
+- **Graceful Exit**: Hit `CTRL+C` at any time to stop training. The script will safely close the W&B connection and save the current state.
+
+### 3. Auto-Resume
+You don't need to do anything special to resume. If you stop the script and run the training command again, it will:
+1. Detect `checkpoints/latest.pth`.
+2. Automatically load the latest weights and optimizer state.
+3. Continue training from the exact epoch where it was interrupted.
+
+---
+
 ## 🧠 Architecture
 
 The model consists of a "Brain" (Encoder-Decoder) and a "Body" (Differentiable Synthesizer).
