@@ -83,13 +83,20 @@ demo = gr.Interface(
     examples=[
         # Add examples here if you have any cool .wav files in the repo
     ],
-    cache_examples=False
+    cache_examples=False,
+    allow_flagging="never"
 )
 
 if __name__ == "__main__":
     print("--- Attempting to start Gradio 3.50.2 Server ---")
-    demo.launch(
-        share=True,
-        show_api=False,
-        show_error=True
-    )
+    try:
+        demo.launch(
+            share=True,
+            show_api=False,
+            show_error=True
+        )
+    except KeyboardInterrupt:
+        print("\n--- Stopping Server... ---")
+    finally:
+        demo.close()
+        print("--- Server stopped and tunnels closed. ---")
