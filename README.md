@@ -2,6 +2,8 @@
 
 A high-fidelity **Differentiable Digital Signal Processing (DDSP)** model implemented in PyTorch. This project performs timbre transfer, converting monophonic input (voice/humming) into a realistic electric guitar sound using a physics-informed synthesizer.
 
+![DDSP System Architecture](./imgs/explanative_diagram.png)
+
 ## 🚀 Quick Start
 
 This project uses a **local, isolated environment** to guarantee reproducibility. All dependencies are installed into the `./venv` directory within the project root.
