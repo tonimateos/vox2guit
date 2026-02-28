@@ -12,8 +12,7 @@ from loss import MultiResolutionSTFTLoss
 
 def train(args):
     # 1. Initialize W&B (Week 2 Alignment)
-    # anonymous="allow" allows users to track experiments without an account
-    wandb.init(project="vox2guit", config=args, anonymous="allow")
+    wandb.init(project="vox2guit", config=args)
     config = wandb.config
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -34,10 +33,20 @@ def train(args):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     loss_fn = MultiResolutionSTFTLoss().to(device)
     
-    # 5. Training Loop
+    # 5. Resume logic
+    start_epoch = 0
+    if args.resume and os.path.exists(args.resume):
+        print(f"Resuming from checkpoint: {args.resume}")
+        checkpoint = torch.load(args.resume, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        start_epoch = checkpoint['epoch']
+        print(f"Loaded checkpoint at epoch {start_epoch}")
+    
+    # 6. Training Loop
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch, args.epochs):
         model.train()
         epoch_loss = 0
         
@@ -72,7 +81,12 @@ def train(args):
         
         # Save Checkpoint
         checkpoint_path = os.path.join(args.checkpoint_dir, f"model_epoch_{epoch+1}.pth")
-        torch.save(model.state_dict(), checkpoint_path)
+        torch.save({
+            'epoch': epoch + 1,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': avg_loss,
+        }, checkpoint_path)
         
         # Log Audio Sample periodically
         if (epoch + 1) % args.log_audio_every == 0:
@@ -86,6 +100,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str, required=True, help='Preprocessed .pt files')
     parser.add_argument('--checkpoint_dir', type=str, default='checkpoints')
+    parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume from')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--lr', type=float, default=1e-4)
