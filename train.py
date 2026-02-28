@@ -12,8 +12,7 @@ from loss import MultiResolutionSTFTLoss
 
 def train(args):
     # 1. Initialize W&B (Week 2 Alignment)
-    # anonymous="allow" allows users to track experiments without an account
-    wandb.init(project="vox2guit", config=args, anonymous="allow")
+    wandb.init(project="vox2guit", config=args)
     config = wandb.config
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -34,58 +33,101 @@ def train(args):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     loss_fn = MultiResolutionSTFTLoss().to(device)
     
-    # 5. Training Loop
+    # 5. Resume logic
+    start_epoch = 0
+    checkpoint_to_load = args.resume
+    
+    # Auto-resume from latest.pth if no path provided
+    if checkpoint_to_load is None:
+        auto_latest = os.path.join(args.checkpoint_dir, "latest.pth")
+        if os.path.exists(auto_latest):
+            checkpoint_to_load = auto_latest
+            print(f"Auto-resuming from latest checkpoint: {checkpoint_to_load}")
+
+    if checkpoint_to_load and os.path.exists(checkpoint_to_load):
+        print(f"Loading checkpoint: {checkpoint_to_load}")
+        checkpoint = torch.load(checkpoint_to_load, map_location=device)
+        
+        # Robust loading for both full dict and legacy state_dict
+        if 'model_state_dict' in checkpoint:
+            model.load_state_dict(checkpoint['model_state_dict'])
+            if 'optimizer_state_dict' in checkpoint:
+                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            start_epoch = checkpoint.get('epoch', 0)
+        else:
+            # Legacy format (just weights)
+            model.load_state_dict(checkpoint)
+            
+        print(f"Success! Resuming from epoch {start_epoch}")
+    
+    # 6. Training Loop
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     
-    for epoch in range(args.epochs):
-        model.train()
-        epoch_loss = 0
-        
-        pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{args.epochs}")
-        for batch_idx, batch in enumerate(pbar):
-            f0 = batch['f0'].to(device)
-            loudness = batch['loudness'].to(device)
-            target_audio = batch['audio'].to(device)
+    try:
+        for epoch in range(start_epoch, args.epochs):
+            model.train()
+            epoch_loss = 0
             
-            # Forward
-            # model(f0, loudness) triggers the forward() method
-            pred_audio = model(f0, loudness)
+            pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{args.epochs}")
+            for batch_idx, batch in enumerate(pbar):
+                f0 = batch['f0'].to(device)
+                loudness = batch['loudness'].to(device)
+                target_audio = batch['audio'].to(device)
+                
+                # Forward
+                pred_audio = model(f0, loudness)
+                
+                # Loss
+                loss = loss_fn(pred_audio, target_audio)
+                
+                # Backward
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                epoch_loss += loss.item()
+                
+                # Log to W&B
+                if batch_idx % 10 == 0:
+                    wandb.log({"train_loss": loss.item()})
+                
+                pbar.set_postfix({"loss": loss.item()})
+                
+            avg_loss = epoch_loss / len(dataloader)
+            print(f"Epoch {epoch+1} Complete. Avg Loss: {avg_loss:.4f}")
             
-            # Loss
-            loss = loss_fn(pred_audio, target_audio)
+            # Save Checkpoint
+            checkpoint_data = {
+                'epoch': epoch + 1,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': avg_loss,
+            }
             
-            # Backward
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            checkpoint_path = os.path.join(args.checkpoint_dir, f"model_epoch_{epoch+1}.pth")
+            latest_path = os.path.join(args.checkpoint_dir, "latest.pth")
             
-            epoch_loss += loss.item()
+            torch.save(checkpoint_data, checkpoint_path)
+            torch.save(checkpoint_data, latest_path) # Always keep a latest.pth for easy resume
             
-            # Log to W&B
-            if batch_idx % 10 == 0:
-                wandb.log({"train_loss": loss.item()})
-            
-            pbar.set_postfix({"loss": loss.item()})
-            
-        avg_loss = epoch_loss / len(dataloader)
-        print(f"Epoch {epoch+1} Complete. Avg Loss: {avg_loss:.4f}")
-        
-        # Save Checkpoint
-        checkpoint_path = os.path.join(args.checkpoint_dir, f"model_epoch_{epoch+1}.pth")
-        torch.save(model.state_dict(), checkpoint_path)
-        
-        # Log Audio Sample periodically
-        if (epoch + 1) % args.log_audio_every == 0:
-            wandb.log({
-                "source_f0": wandb.Histogram(f0.cpu().numpy()),
-                "pred_audio": wandb.Audio(pred_audio[0].detach().cpu().numpy(), sample_rate=16000),
-                "target_audio": wandb.Audio(target_audio[0].cpu().numpy(), sample_rate=16000)
-            })
+            # Log Audio Sample periodically
+            if (epoch + 1) % args.log_audio_every == 0:
+                wandb.log({
+                    "source_f0": wandb.Histogram(f0.cpu().numpy()),
+                    "pred_audio": wandb.Audio(pred_audio[0].detach().cpu().numpy(), sample_rate=16000),
+                    "target_audio": wandb.Audio(target_audio[0].cpu().numpy(), sample_rate=16000)
+                })
+                
+    except KeyboardInterrupt:
+        print("\nTraining interrupted by user. Saving state...")
+    finally:
+        wandb.finish()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str, required=True, help='Preprocessed .pt files')
     parser.add_argument('--checkpoint_dir', type=str, default='checkpoints')
+    parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume from')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--lr', type=float, default=1e-4)
