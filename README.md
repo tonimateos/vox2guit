@@ -85,14 +85,22 @@ You don't need to do anything special to resume. If you stop the script and run 
 
 ## 🧠 Architecture
 
-The model consists of a "Brain" (Encoder-Decoder) and a "Body" (Differentiable Synthesizer).
+The model follows the **Control-Synthesis** paradigm, separating the "Brain" (Neural Network) from the "Body" (DSP Synthesizer).
 
-- **Encoder**: Extracts pitch ($f_0$) using a pre-trained **CREPE** model and Loudness (RMS).
+- **Encoder**: Extracts pitch ($f_0$) using a pre-trained **CREPE** model and A-weighted Loudness.
 - **Decoder**: A **GRU** (Gated Recurrent Unit) maps these control signals to synthesizer parameters.
+    - **Why GRU?**: We chose a GRU over a Transformer because it is significantly more efficient for real-time audio synthesis. GRUs have a strong "inductive bias" for sequences where the next frame depends heavily on the previous one (temporal persistence).
+    - **Future-Proofing**: While the GRU is our "lean and mean" baseline, the modular design allows us to swap in a **Transformer-based decoder** if we need to model more complex, long-range musical dependencies in the future.
 - **Synthesizer**:
     - **Harmonic Synthesizer**: Additive synthesis (sum of sines) for the tonal string vibration.
     - **Filtered Noise**: Subtractive synthesis (time-varying FIR filters) for pick attack and rasp.
 - **Loss**: **Multi-Resolution STFT Loss** (in `loss.py`) ensures the model learns spectral details across time and frequency.
+
+### Further Reading on GRUs
+- **[Original Paper]**: [Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation](https://arxiv.org/abs/1406.1078) (Cho et al., 2014)
+- **[Visual Guide]**: [Understanding GRU Networks](https://towardsdatascience.com/understanding-gru-networks-2ef37df6866) — A great visual breakdown of the internal gates.
+
+---
 
 ## 📂 File Structure
 
