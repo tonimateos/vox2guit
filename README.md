@@ -67,7 +67,7 @@ Training a neural synthesizer is an iterative process. Here is how to keep an ey
 ### 1. Weights & Biases (Remote)
 Once training starts, W&B provides a real-time dashboard at the URL printed in your terminal.
 - **Loss Curves**: Monitor `train_loss`. A steady decrease indicates the model is learning the spectral features.
-- **Audio Samples**: Every 5 epochs, the model uploads an audio reconstruction. Listen to these to hear the timbre evolve from noise to guitar.
+- **Audio Samples**: Every 5 epochs, the model uploads an audio reconstruction. Listen to these to hear the timbre evolve from noise to guitar. Specifically, the model extracts the pitch and loudness "DNA" from the target audio and passes it through the neural network to see how well the synthesizer can mimic the original.
 - **Run Management**: Each execution gets a random name (e.g., `solar-wave-10`). You can delete failed/interrupted runs from the W&B project settings to keep your dashboard clean.
 
 ### 2. Local Monitoring
