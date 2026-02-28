@@ -98,7 +98,7 @@ The model follows the **Control-Synthesis** paradigm, separating the "Brain" (Ne
 
 ### Further Reading on GRUs
 - **[Original Paper]**: [Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation](https://arxiv.org/abs/1406.1078) (Cho et al., 2014)
-- **[Visual Guide]**: [Understanding GRU Networks](https://towardsdatascience.com/understanding-gru-networks-2ef37df6866) — A great visual breakdown of the internal gates.
+- **[Visual Guide]**: [Gated Recurrent Units (GRU) - Dive into Deep Learning](https://d2l.ai/chapter_recurrent-modern/gru.html) — An excellent, interactive textbook guide with clear diagrams and math.
 
 ---
 
