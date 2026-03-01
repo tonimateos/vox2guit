@@ -1,0 +1,14 @@
+{
+    "sample_rate": 16000,
+    "hop_length": 160,
+    "frame_length": 1024,
+    "pitch_min_freq": 50,
+    "pitch_max_freq": 2000,
+    "crepe_model_size": "tiny",
+    "crepe_batch_size": 2048,
+    "a_weighting_low_cutoff": 20.6,
+    "a_weighting_high_cutoff": 7500,
+    "a_weighting_filter_order": 6,
+    "a_weighting_stopband_attenuation": 60,
+    "epsilon": 1e-07
+}
