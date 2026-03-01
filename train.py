@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import wandb
 import json
+import numpy as np
 
 from model import NeuralGuitar
 from data import NeuralGuitarDataset
@@ -51,21 +52,22 @@ def train(args):
             checkpoint_to_load = auto_latest
             print(f"Auto-resuming from latest checkpoint: {checkpoint_to_load}")
 
-    if checkpoint_to_load and os.path.exists(checkpoint_to_load):
+    if not args.no_resume and checkpoint_to_load and os.path.exists(checkpoint_to_load):
         print(f"Loading checkpoint: {checkpoint_to_load}")
         checkpoint = torch.load(checkpoint_to_load, map_location=device)
         
-        # Robust loading for both full dict and legacy state_dict
-        if 'model_state_dict' in checkpoint:
-            model.load_state_dict(checkpoint['model_state_dict'])
-            if 'optimizer_state_dict' in checkpoint:
+        state_dict = checkpoint['model_state_dict'] if 'model_state_dict' in checkpoint else checkpoint
+        
+        try:
+            model.load_state_dict(state_dict)
+            if 'optimizer_state_dict' in checkpoint and 'model_state_dict' in checkpoint:
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            start_epoch = checkpoint.get('epoch', 0)
-        else:
-            # Legacy format (just weights)
-            model.load_state_dict(checkpoint)
-            
-        print(f"Success! Resuming from epoch {start_epoch}")
+            start_epoch = checkpoint.get('epoch', 0) if isinstance(checkpoint, dict) else 0
+            print(f"Success! Resuming from epoch {start_epoch}")
+        except RuntimeError as e:
+            print(f"Warning: Could not load checkpoint from {checkpoint_to_load} due to architecture mismatch.")
+            print("Starting training from scratch for the new model configuration.")
+            # We don't exit, we just continue with fresh weights
     
     # 6. Training Loop
     os.makedirs(args.checkpoint_dir, exist_ok=True)
@@ -146,6 +148,7 @@ if __name__ == "__main__":
     parser.add_argument('--config_file', type=str, default='config.json')
     parser.add_argument('--config_name', type=str, default='tiny')
     parser.add_argument('--log_audio_every', type=int, default=5)
+    parser.add_argument('--no_resume', action='store_true', help='Force start from scratch')
     
     args = parser.parse_args()
     train(args)
