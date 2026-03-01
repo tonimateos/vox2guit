@@ -21,8 +21,15 @@ model = NeuralGuitar(
 ).to(device)
 
 if os.path.exists(CHECKPOINT_PATH):
-    print(f"--- Loading checkpoint: {CHECKPOINT_PATH} ---")
-    checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
+    model_file = CHECKPOINT_PATH
+elif os.path.exists("latest.pth"):
+    model_file = "latest.pth"
+else:
+    model_file = None
+
+if model_file:
+    print(f"--- Loading checkpoint: {model_file} ---")
+    checkpoint = torch.load(model_file, map_location=device)
     if 'model_state_dict' in checkpoint:
         model.load_state_dict(checkpoint['model_state_dict'])
     else:
@@ -30,7 +37,7 @@ if os.path.exists(CHECKPOINT_PATH):
     model.eval()
     print("--- Model loaded and ready! ---")
 else:
-    print(f"Warning: Checkpoint {CHECKPOINT_PATH} not found. Running with uninitialized weights.")
+    print(f"Warning: No checkpoint found ({CHECKPOINT_PATH} or latest.pth). Running with uninitialized weights.")
 
 def process_audio(input_audio):
     if input_audio is None:

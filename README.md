@@ -1,6 +1,17 @@
+---
+title: Neural Guitar DDSP
+emoji: 🎸
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 3.50.2
+app_file: app.py
+pinned: false
+---
+
 # Neural Guitar: DDSP Timbre Transfer
 
-A high-fidelity **Differentiable Digital Signal Processing (DDSP)** model implemented in PyTorch. This project performs timbre transfer, converting monophonic input (voice/humming) into a realistic electric guitar sound using a physics-informed synthesizer.
+A **Differentiable Digital Signal Processing (DDSP)** model implemented in PyTorch. This project performs timbre transfer, converting monophonic input (voice/humming) into a realistic electric guitar sound using a physics-informed synthesizer.
 
 ![DDSP System Architecture](./imgs/explanative_diagram.png)
 
