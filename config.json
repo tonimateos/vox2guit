@@ -5,6 +5,49 @@
         "n_harmonics": 101,
         "n_noise_bands": 65,
         "sample_rate": 16000,
-        "hop_length": 160
+        "hop_length": 160,
+        "fft_sizes": [
+            512,
+            1024,
+            2048
+        ],
+        "hop_sizes": [
+            120,
+            240,
+            480
+        ],
+        "win_lengths": [
+            240,
+            600,
+            1200
+        ],
+        "mag_loss_weight": 1.0
+    },
+    "standard": {
+        "description": "Higher capacity model for better timbre quality",
+        "hidden_size": 1024,
+        "n_harmonics": 101,
+        "n_noise_bands": 129,
+        "sample_rate": 16000,
+        "hop_length": 160,
+        "fft_sizes": [
+            512,
+            1024,
+            2048,
+            4096
+        ],
+        "hop_sizes": [
+            120,
+            240,
+            480,
+            960
+        ],
+        "win_lengths": [
+            240,
+            600,
+            1200,
+            2400
+        ],
+        "mag_loss_weight": 2.0
     }
 }

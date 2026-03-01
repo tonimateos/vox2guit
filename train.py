@@ -33,7 +33,12 @@ def train(args):
     
     # 4. Optimizer & Loss
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    loss_fn = MultiResolutionSTFTLoss().to(device)
+    loss_fn = MultiResolutionSTFTLoss(
+        FFT_sizes=net_config["fft_sizes"],
+        hop_sizes=net_config["hop_sizes"],
+        win_lengths=net_config["win_lengths"],
+        mag_loss_weight=net_config.get("mag_loss_weight", 1.0)
+    ).to(device)
     
     # 5. Resume logic
     start_epoch = 0
