@@ -7,3 +7,7 @@ numpy<2.0.0
 matplotlib>=3.7.0
 tqdm>=4.65.0
 wandb>=0.15.0
+gradio==3.50.2
+pydantic<2.0.0
+fastapi<0.110.0
+huggingface-hub<0.26.0
