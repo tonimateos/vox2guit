@@ -154,3 +154,6 @@ The model follows the **Control-Synthesis** paradigm, separating the "Brain" (Ne
 - `data.py`: `NeuralGuitarDataset` with random cropping.
 - `download_data.py`: Automated GuitarSet downloader.
 - `setup_env.sh`: Environment reproducibility script.
+- `test_e2e.py`: Deterministic regression test suite.
+- `tests/`: Directory for reference audio assets (Tracked via LFS).
+- `config.json`: Centralized configuration for model architectures (e.g., "tiny").
