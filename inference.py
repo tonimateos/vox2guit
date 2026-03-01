@@ -2,6 +2,7 @@ import os
 import argparse
 import torch
 import torchaudio
+import json
 from model import NeuralGuitar
 from preprocess import extract_features
 
@@ -9,12 +10,13 @@ def inference(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
+    # Load external config
+    with open(args.config_file, "r") as f:
+        all_configs = json.load(f)
+    net_config = all_configs[args.config_name]
+
     # 1. Load Model
-    model = NeuralGuitar(
-        n_harmonics=args.n_harmonics,
-        n_noise_bands=args.n_noise_bands,
-        hidden_size=args.hidden_size
-    ).to(device)
+    model = NeuralGuitar(config=net_config).to(device)
 
     print(f"Loading checkpoint: {args.checkpoint}")
     checkpoint = torch.load(args.checkpoint, map_location=device)
@@ -45,7 +47,7 @@ def inference(args):
             audio = resampler(audio)
         
         with torch.no_grad():
-            f0, loudness = extract_features(audio, 16000)
+            f0, loudness = extract_features(audio, 16000, hop_length=net_config['hop_length'])
             f0 = f0.to(device)
             loudness = loudness.to(device)
     else:
@@ -73,9 +75,8 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', type=str, default='output', help='Directory to save results')
     
     # Model architecture should match what was used in training
-    parser.add_argument('--hidden_size', type=int, default=512)
-    parser.add_argument('--n_harmonics', type=int, default=101)
-    parser.add_argument('--n_noise_bands', type=int, default=65)
+    parser.add_argument('--config_file', type=str, default='config.json')
+    parser.add_argument('--config_name', type=str, default='tiny')
 
     args = parser.parse_args()
     inference(args)

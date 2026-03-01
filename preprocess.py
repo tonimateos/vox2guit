@@ -71,7 +71,7 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = 16
     return f0, loudness
 
 
-def preprocess_dataset(input_dir: str, output_dir: str):
+def preprocess_dataset(input_dir: str, output_dir: str, hop_length: int = 160):
     os.makedirs(output_dir, exist_ok=True)
     files = glob.glob(os.path.join(input_dir, '*.wav'))
     
@@ -109,7 +109,7 @@ def preprocess_dataset(input_dir: str, output_dir: str):
             
         # Extract
         try:
-            f0, loudness = extract_features(audio, 16000, hop_length=160, existing_f0=existing_f0)
+            f0, loudness = extract_features(audio, 16000, hop_length=hop_length, existing_f0=existing_f0)
             
             # Save
             num_frames = f0.shape[1]
@@ -128,6 +128,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_dir', type=str, required=True, help='Directory of .wav files')
     parser.add_argument('--output_dir', type=str, required=True, help='Directory to save .pt tensors')
+    parser.add_argument('--config_file', type=str, default='config.json')
+    parser.add_argument('--config_name', type=str, default='tiny')
     args = parser.parse_args()
     
-    preprocess_dataset(args.input_dir, args.output_dir)
+    import json
+    with open(args.config_file, "r") as f:
+        config = json.load(f)[args.config_name]
+    
+    preprocess_dataset(args.input_dir, args.output_dir, hop_length=config['hop_length'])

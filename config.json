@@ -1,0 +1,10 @@
+{
+    "tiny": {
+        "description": "Baseline small model for real-time performance",
+        "hidden_size": 512,
+        "n_harmonics": 101,
+        "n_noise_bands": 65,
+        "sample_rate": 16000,
+        "hop_length": 160
+    }
+}

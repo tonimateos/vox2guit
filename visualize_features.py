@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 import os
 import glob
+import json
 
 def visualize(fpath):
     print(f"Loading {fpath}...")
@@ -14,9 +15,12 @@ def visualize(fpath):
     audio = data['audio'].squeeze().numpy()
     
     # Time axes
-    # hop_length is 160 at 16000Hz (100Hz frame rate)
-    sr = 16000
-    hop = 160
+    # Load config for SR and Hop
+    with open("config.json", "r") as f:
+        config = json.load(f)["tiny"]
+    sr = config["sample_rate"]
+    hop = config["hop_length"]
+    
     time_audio = np.arange(len(audio)) / sr
     time_frames = np.arange(len(f0)) * (hop / sr)
     

@@ -5,12 +5,18 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import wandb
+import json
 
 from model import NeuralGuitar
 from data import NeuralGuitarDataset
 from loss import MultiResolutionSTFTLoss
 
 def train(args):
+    # Load external config
+    with open(args.config_file, "r") as f:
+        all_configs = json.load(f)
+    net_config = all_configs[args.config_name]
+    
     # 1. Initialize W&B (Week 2 Alignment)
     wandb.init(project="vox2guit", config=args)
     config = wandb.config
@@ -23,11 +29,7 @@ def train(args):
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
     
     # 3. Model
-    model = NeuralGuitar(
-        n_harmonics=args.n_harmonics, 
-        n_noise_bands=args.n_noise_bands, 
-        hidden_size=args.hidden_size
-    ).to(device)
+    model = NeuralGuitar(config=net_config).to(device)
     
     # 4. Optimizer & Loss
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -132,9 +134,8 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--seq_len', type=int, default=16000)
-    parser.add_argument('--hidden_size', type=int, default=512)
-    parser.add_argument('--n_harmonics', type=int, default=101)
-    parser.add_argument('--n_noise_bands', type=int, default=65)
+    parser.add_argument('--config_file', type=str, default='config.json')
+    parser.add_argument('--config_name', type=str, default='tiny')
     parser.add_argument('--log_audio_every', type=int, default=5)
     
     args = parser.parse_args()

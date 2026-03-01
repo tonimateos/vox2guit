@@ -8,20 +8,21 @@ from scipy.io import wavfile
 from model import NeuralGuitar
 from preprocess import extract_features
 
-# --- Configuration ---
+import json
+
+# --- Configuration Loader ---
+CONFIG_PATH = "config.json"
+with open(CONFIG_PATH, "r") as f:
+    ALL_CONFIGS = json.load(f)
+CONFIG = ALL_CONFIGS["tiny"]
+
 CHECKPOINT_PATH = "checkpoints/latest.pth"
-HIDDEN_SIZE = 512
-N_HARMONICS = 101
-N_NOISE_BANDS = 65
-SAMPLE_RATE = 16000
+SAMPLE_RATE = CONFIG["sample_rate"]
+HOP_LENGTH = CONFIG["hop_length"]
 
 # --- Load Model ---
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = NeuralGuitar(
-    n_harmonics=N_HARMONICS,
-    n_noise_bands=N_NOISE_BANDS,
-    hidden_size=HIDDEN_SIZE
-).to(device)
+model = NeuralGuitar(config=CONFIG).to(device)
 
 if os.path.exists(CHECKPOINT_PATH):
     model_file = CHECKPOINT_PATH
@@ -51,7 +52,7 @@ def generate_plots(audio, f0, loudness):
     # Time axes
     time_audio = np.arange(len(audio)) / SAMPLE_RATE
     # 100Hz frame rate (160 hop at 16k sr)
-    time_frames = np.arange(len(f0)) * (160 / 16000)
+    time_frames = np.arange(len(f0)) * (HOP_LENGTH / SAMPLE_RATE)
     
     fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
     plt.subplots_adjust(hspace=0.4)
@@ -110,7 +111,7 @@ def process_audio(input_audio):
     
     # Feature Extraction
     with torch.no_grad():
-        f0, loudness = extract_features(audio, SAMPLE_RATE)
+        f0, loudness = extract_features(audio, SAMPLE_RATE, hop_length=HOP_LENGTH)
         f0 = f0.to(device)
         loudness = loudness.to(device)
         

@@ -22,11 +22,19 @@ from synth import HarmonicSynthesizer, FilteredNoiseSynthesizer
 
 class NeuralGuitar(nn.Module):
     def __init__(self, 
-                 n_harmonics: int = 100, 
+                 n_harmonics: int = 101, 
                  n_noise_bands: int = 65, 
                  hidden_size: int = 512, 
-                 sample_rate: int = 16000):
+                 sample_rate: int = 16000,
+                 config: dict = None):
         super().__init__()
+        
+        # Override with config dict if provided
+        if config:
+            n_harmonics = config.get('n_harmonics', n_harmonics)
+            n_noise_bands = config.get('n_noise_bands', n_noise_bands)
+            hidden_size = config.get('hidden_size', hidden_size)
+            sample_rate = config.get('sample_rate', sample_rate)
         
         # --- The Body (DSP) ---
         self.harmonic_synth = HarmonicSynthesizer(n_harmonics, sample_rate)
