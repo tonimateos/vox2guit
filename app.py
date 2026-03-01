@@ -10,38 +10,18 @@ from preprocess import extract_features
 
 import json
 
-# --- Configuration Loader ---
-CONFIG_PATH = "config.json"
-with open(CONFIG_PATH, "r") as f:
-    ALL_CONFIGS = json.load(f)
-CONFIG = ALL_CONFIGS["tiny"]
+from core import NeuralGuitarCore
 
-CHECKPOINT_PATH = "checkpoints/latest.pth"
-SAMPLE_RATE = CONFIG["sample_rate"]
-HOP_LENGTH = CONFIG["hop_length"]
-
-# --- Load Model ---
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = NeuralGuitar(config=CONFIG).to(device)
-
-if os.path.exists(CHECKPOINT_PATH):
-    model_file = CHECKPOINT_PATH
-elif os.path.exists("latest.pth"):
-    model_file = "latest.pth"
-else:
-    model_file = None
-
-if model_file:
-    print(f"--- Loading checkpoint: {model_file} ---")
-    checkpoint = torch.load(model_file, map_location=device)
-    if 'model_state_dict' in checkpoint:
-        model.load_state_dict(checkpoint['model_state_dict'])
-    else:
-        model.load_state_dict(checkpoint)
-    model.eval()
-    print("--- Model loaded and ready! ---")
-else:
-    print(f"Warning: No checkpoint found ({CHECKPOINT_PATH} or latest.pth). Running with uninitialized weights.")
+# --- Initialize Core ---
+# We point to standard locations for checkpoints and config
+core = NeuralGuitarCore(
+    checkpoint_path="checkpoints/latest.pth",
+    config_path="config.json",
+    config_name="tiny"
+)
+# Re-expose these for the UI plotting
+SAMPLE_RATE = core.config["sample_rate"]
+HOP_LENGTH = core.config["hop_length"]
 
 def generate_plots(audio, f0, loudness):
     """Generates a clean visualization of Waveform, Pitch and Loudness."""
@@ -98,39 +78,22 @@ def generate_plots(audio, f0, loudness):
     plt.close()
     return plot_path
 
-def process_audio(input_audio):
-    if input_audio is None:
+def process_audio(input_path):
+    if input_path is None:
         return None
     
-    # librosa.load is more portable than torchaudio in cloud environments
-    # It handles mono mixing and resampling in one step
-    audio, sr = librosa.load(input_audio, sr=SAMPLE_RATE, mono=True)
+    # Use the shared core for processing
+    audio_orig, audio_resynth, f0, loudness = core.process_audio(input_path)
     
-    # Convert to torch tensor for the model
-    audio = torch.from_numpy(audio).float().unsqueeze(0)
+    # Core returns numpy/torch objects, now we handle UI-specific tasks:
+    # 1. Visualization
+    # Convert f0 and loudness back to torch for the plot function (it expects .cpu().numpy() calls)
+    plot_path = generate_plots(torch.from_numpy(audio_orig), f0, loudness)
     
-    # Feature Extraction
-    with torch.no_grad():
-        f0, loudness = extract_features(audio, SAMPLE_RATE, hop_length=HOP_LENGTH)
-        f0 = f0.to(device)
-        loudness = loudness.to(device)
-        
-        # Synthesis
-        output_audio = model(f0, loudness)
-        
-        # New Visualization
-        plot_path = generate_plots(audio, f0, loudness)
-    
-    # Save result using scipy (no backend issues)
+    # 2. Save result for Gradio
     os.makedirs("output", exist_ok=True)
     out_path = "output/web_resynth.wav"
-    
-    # Convert from torch tensor to numpy for scipy
-    audio_out_np = output_audio.squeeze().cpu().numpy()
-    
-    # Ensure it's in the right range and type for wavfile.write
-    # (DDSP output is usually float32 in [-1, 1])
-    wavfile.write(out_path, SAMPLE_RATE, audio_out_np)
+    wavfile.write(out_path, SAMPLE_RATE, audio_resynth)
     
     return out_path, plot_path
 

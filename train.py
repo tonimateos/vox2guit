@@ -114,9 +114,13 @@ def train(args):
             
             # Log Audio Sample periodically
             if (epoch + 1) % args.log_audio_every == 0:
+                # Normalize for W&B listening
+                audio_to_log = pred_audio[0].detach().cpu().numpy()
+                audio_to_log = audio_to_log / (np.max(np.abs(audio_to_log)) + 1e-7)
+                
                 wandb.log({
                     "source_f0": wandb.Histogram(f0.cpu().numpy()),
-                    "pred_audio": wandb.Audio(pred_audio[0].detach().cpu().numpy(), sample_rate=16000),
+                    "pred_audio": wandb.Audio(audio_to_log, sample_rate=16000),
                     "target_audio": wandb.Audio(target_audio[0].cpu().numpy(), sample_rate=16000)
                 })
                 

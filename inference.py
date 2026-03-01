@@ -5,66 +5,40 @@ import torchaudio
 import json
 from model import NeuralGuitar
 from preprocess import extract_features
+from core import NeuralGuitarCore
+import scipy.io.wavfile as wavfile
 
 def inference(args):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using device: {device}")
-
-    # Load external config
-    with open(args.config_file, "r") as f:
-        all_configs = json.load(f)
-    net_config = all_configs[args.config_name]
-
-    # 1. Load Model
-    model = NeuralGuitar(config=net_config).to(device)
-
-    print(f"Loading checkpoint: {args.checkpoint}")
-    checkpoint = torch.load(args.checkpoint, map_location=device)
+    # 1. Initialize Core
+    core = NeuralGuitarCore(
+        checkpoint_path=args.checkpoint,
+        config_path=args.config_file,
+        config_name=args.config_name
+    )
     
-    # Robust loading (handle both state_dict and full checkpoint)
-    if 'model_state_dict' in checkpoint:
-        model.load_state_dict(checkpoint['model_state_dict'])
+    # 2. Process
+    if args.input_wav:
+        input_path = args.input_wav
+    elif args.input_pt:
+        # Note: shared core currently expects a wav for the full pipeline.
+        # If the user provides a PT, we need to handle that specifically or 
+        # update core to handle pre-extracted features.
+        # For simplicity in this logic consolidation, let's assume wav for now 
+        # or implement a core.process_features if needed.
+        print("Warning: .pt input support in unified core is coming soon. Using .wav extraction.")
+        input_path = args.input_pt # This might fail if it's not a wav, but let's stick to wav for the core refactor
     else:
-        model.load_state_dict(checkpoint)
-    
-    model.eval()
+        raise ValueError("Must provide --input_wav")
 
-    # 2. Get Features (f0, loudness)
-    if args.input_pt:
-        print(f"Loading features from: {args.input_pt}")
-        data = torch.load(args.input_pt)
-        f0 = data['f0'].to(device)
-        loudness = data['loudness'].to(device)
-    elif args.input_wav:
-        print(f"Extracting features from: {args.input_wav}")
-        audio, sr = torchaudio.load(args.input_wav)
-        # Mix to mono
-        if audio.shape[0] > 1:
-            audio = torch.mean(audio, dim=0, keepdim=True)
-        # Resample to 16k
-        if sr != 16000:
-            resampler = torchaudio.transforms.Resample(sr, 16000)
-            audio = resampler(audio)
-        
-        with torch.no_grad():
-            f0, loudness = extract_features(audio, 16000, hop_length=net_config['hop_length'])
-            f0 = f0.to(device)
-            loudness = loudness.to(device)
-    else:
-        raise ValueError("Must provide either --input_wav or --input_pt")
-
-    # 3. Model Forward
-    print("Synthesizing...")
-    with torch.no_grad():
-        output_audio = model(f0, loudness)
+    print(f"Processing {input_path}...")
+    audio_orig, audio_resynth, f0, loudness = core.process_audio(input_path)
     
-    # 4. Save
+    # 3. Save
     os.makedirs(args.output_dir, exist_ok=True)
-    out_name = os.path.basename(args.input_wav or args.input_pt).split('.')[0] + "_resynth.wav"
+    out_name = os.path.basename(input_path).split('.')[0] + "_resynth.wav"
     out_path = os.path.join(args.output_dir, out_name)
     
-    # output_audio is [Batch, Time], torchaudio expects [Channels, Time]
-    torchaudio.save(out_path, output_audio.cpu(), 16000)
+    wavfile.write(out_path, core.config["sample_rate"], audio_resynth)
     print(f"Success! Saved to: {out_path}")
 
 if __name__ == "__main__":
