@@ -143,6 +143,32 @@ The model follows the **Control-Synthesis** paradigm, separating the "Brain" (Ne
 
 ---
 
+## Mathematical Loss Function: Multi-Resolution STFT
+
+The "Neural Guitar" uses a **Multi-Resolution Short-Time Fourier Transform (MR-STFT) Loss** to train the GRU decoder. Unlike a simple time-domain MSE, this loss evaluates the model across multiple time-frequency scales to capture both sharp transients (plucks) and sustained harmonic timbre.
+
+### 1. Single-Resolution STFT Loss
+For each resolution $i$ (defined by FFT size $N_i$, hop size $H_i$, and window $W_i$), the loss $L_s^{(i)}$ is a combination of two components:
+
+#### Spectral Convergence ($L_{sc}$)
+This measures the overall "energy shape" of the spectrogram. It is defined as the Frobenius norm of the difference between the target and predicted magnitudes, normalized by the target's norm:
+
+$$L_{sc}(x, y) = \frac{|| \ |STFT(y)| - |STFT(x)| \ ||_F}{|| \ |STFT(y)| \ ||_F + \epsilon}$$
+
+#### Log-Magnitude Loss ($L_{mag}$)
+To better match human auditory perception (which is logarithmic), we calculate the $L1$ distance between the log-spectrograms. We use a weighting factor $w$ (configured in `config.json`) to prioritize tonal warmth:
+
+$$L_{mag}(x, y) = w \cdot \frac{1}{T \cdot F} \sum_{t,f} | \log(|STFT(y)_{t,f}| + \epsilon) - \log(|STFT(x)_{t,f}| + \epsilon) |$$
+
+### 2. Multi-Resolution Aggregation
+To prevent the model from over-fitting to a single window size, we average the loss across a bank of resolutions (e.g., 512, 1024, 2048, and 4096):
+
+$$L_{total} = \frac{1}{M} \sum_{i=1}^{M} (L_{sc}^{(i)} + L_{mag}^{(i)})$$
+
+Using a high resolution like **4096** is crucial for capturing the distinct, tight harmonics of low guitar strings, while the **512** resolution ensures the "pop" of the initial pick attack is preserved.
+
+---
+
 ## 📂 File Structure
 
 - `model.py`: Main `NeuralGuitar` nn.Module.
