@@ -69,7 +69,14 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = No
     if existing_f0 is not None:
         f0 = existing_f0
     else:
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        # Check for CUDA, then MPS, then CPU
+        if torch.cuda.is_available():
+            device = 'cuda'
+        elif torch.backends.mps.is_available():
+            device = 'mps'
+        else:
+            device = 'cpu'
+            
         audio_16k = audio # Assuming SR=16k
         f0, _ = torchcrepe.predict(
             audio_16k, 
@@ -99,24 +106,22 @@ def preprocess_dataset(input_dir: str, output_dir: str, hop_length: int = None):
     
     print(f"Found {len(files)} wav files.")
     
-    import warnings
-    warnings.filterwarnings("ignore") # Ignore some torchaudio warnings
+    # Detection of device (Adding MPS support for Mac)
+    if torch.cuda.is_available():
+        device = 'cuda'
+    elif torch.backends.mps.is_available():
+        device = 'mps'
+    else:
+        device = 'cpu'
+    print(f"Using device: {device}")
 
     for fpath in tqdm(files):
         fname = os.path.basename(fpath).replace('.wav', '.pt')
         save_path = os.path.join(output_dir, fname)
         
+        # We REMOVE the skip logic here because we want to overwrite 
+        # old 'tiny' features with new 'full' features.
         existing_f0 = None
-        if os.path.exists(save_path):
-            try:
-                d = torch.load(save_path)
-                if not torch.isnan(d['loudness']).any():
-                    continue
-                # Reuse existing f0 to avoid slow CREPE re-inference
-                existing_f0 = d['f0']
-                print(f"Repairing loudness for: {fname}")
-            except:
-                pass
 
         # Load
         audio, sr = torchaudio.load(fpath)
