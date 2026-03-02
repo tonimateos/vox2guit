@@ -48,8 +48,7 @@ class NeuralGuitar(nn.Module):
         )
         self.mlp = nn.Linear(self.hidden_size, self.n_harmonics + self.n_noise_bands)
         
-        self.n_harmonics = n_harmonics
-        self.n_noise_bands = n_noise_bands
+
 
     def forward(self, f0: torch.Tensor, loudness: torch.Tensor) -> torch.Tensor:
         """

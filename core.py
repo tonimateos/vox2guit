@@ -8,7 +8,12 @@ from preprocess import extract_features
 
 class NeuralGuitarCore:
     def __init__(self, checkpoint_path="checkpoints/latest.pth", config_path="config.json", config_name="tiny"):
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if torch.cuda.is_available():
+            self.device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            self.device = torch.device('mps')
+        else:
+            self.device = torch.device('cpu')
         
         # 1. Load Config
         if not os.path.exists(config_path):

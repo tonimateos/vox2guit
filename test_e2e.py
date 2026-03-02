@@ -14,6 +14,10 @@ def run_test():
     np.random.seed(42)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(42)
+    elif torch.backends.mps.is_available():
+        # MPS doesn't have a manual_seed_all equivalent for the device itself in the same way,
+        # but torch.manual_seed covers it.
+        pass
 
     core = NeuralGuitarCore(
         checkpoint_path="checkpoints/latest.pth",

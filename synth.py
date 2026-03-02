@@ -16,6 +16,19 @@ import numpy as np
 #    - Method: Subtractive Synthesis. White noise -> Time-Varying FIR Filter.
 # ==============================================================================
 
+def resample_1d(x: torch.Tensor, target_len: int) -> torch.Tensor:
+    """
+    MPS-friendly linear interpolation for 1D signals.
+    Args:
+        x: [Batch, Channels, Time]
+        target_len: target sequence length
+    """
+    if x.device.type == 'mps':
+        # MPS workaround: Use 2D bilinear interpolation which is implemented
+        return F.interpolate(x.unsqueeze(-1), size=(target_len, 1), mode='bilinear', align_corners=True).squeeze(-1)
+    else:
+        return F.interpolate(x, size=target_len, mode='linear', align_corners=True)
+
 class HarmonicSynthesizer(nn.Module):
     def __init__(self, n_harmonics: int = 100, sample_rate: int = 16000, hop_length: int = 160):
         super().__init__()
@@ -28,8 +41,8 @@ class HarmonicSynthesizer(nn.Module):
         if f0.dim() == 2:
             f0 = f0.unsqueeze(-1)
             
-        f0_up = F.interpolate(f0.transpose(1, 2), size=target_len, mode='linear', align_corners=True).transpose(1, 2)
-        amps_up = F.interpolate(harmonic_amplitudes.transpose(1, 2), size=target_len, mode='linear', align_corners=True).transpose(1, 2)
+        f0_up = resample_1d(f0.transpose(1, 2), target_len).transpose(1, 2)
+        amps_up = resample_1d(harmonic_amplitudes.transpose(1, 2), target_len).transpose(1, 2)
             
         harmonic_indices = torch.arange(1, self.n_harmonics + 1, device=f0.device).float() 
         frequencies = f0_up * harmonic_indices.unsqueeze(0).unsqueeze(0)
@@ -58,7 +71,7 @@ class FilteredNoiseSynthesizer(nn.Module):
         
         # 1. Interpolate filter_magnitudes to match STFT bins
         H_reshaped = filter_magnitudes.reshape(-1, 1, n_bands)
-        H_interp = F.interpolate(H_reshaped, size=n_fft // 2 + 1, mode='linear', align_corners=True)
+        H_interp = resample_1d(H_reshaped, n_fft // 2 + 1)
         H = H_interp.reshape(batch_size, n_frames, n_fft // 2 + 1).transpose(1, 2) # [B, F, T]
 
         # 2. Generate White Noise
