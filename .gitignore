@@ -21,3 +21,4 @@ output/
 # But DO track reference wavs
 !tests/reference_input.wav
 !tests/golden_output.wav
+!checkpoints/latest.pth
