@@ -50,9 +50,15 @@ class HarmonicSynthesizer(nn.Module):
         harmonic_indices = torch.arange(1, self.n_harmonics + 1, device=f0.device).float() 
         frequencies = f0_up * harmonic_indices.unsqueeze(0).unsqueeze(0)
 
+        # Anti-Aliasing Mask: Zero out any harmonic that exceeds Nyquist (SR/2).
+        # This prevents metallic 'ghost' frequencies and aliasing artifacts.
+        mask = (frequencies < self.sample_rate / 2).float()
+
         phases = 2 * np.pi * torch.cumsum(frequencies / self.sample_rate, dim=1)
         sin_waves = torch.sin(phases)
-        harmonic_signals = sin_waves * amps_up
+        
+        # Apply mask to amplitudes
+        harmonic_signals = sin_waves * (amps_up * mask)
         audio = torch.sum(harmonic_signals, dim=-1)
         
         return audio

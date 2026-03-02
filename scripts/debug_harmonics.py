@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 import os
 import argparse
 import json
+import sys
+import os
+
+# Allow running from scripts/ directory
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from core import NeuralGuitarCore
 
 def debug_harmonics(input_wav, checkpoint_path, config_path, config_name, output_dir):
