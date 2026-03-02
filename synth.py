@@ -68,7 +68,9 @@ class FilteredNoiseSynthesizer(nn.Module):
         batch_size, n_frames, n_bands = filter_magnitudes.shape
         hop_length = 160
         n_fft = 1024 
-        
+        device = filter_magnitudes.device
+        is_mps = device.type == 'mps'
+
         # 1. Interpolate filter_magnitudes to match STFT bins
         H_reshaped = filter_magnitudes.reshape(-1, 1, n_bands)
         H_interp = resample_1d(H_reshaped, n_fft // 2 + 1)
@@ -76,34 +78,69 @@ class FilteredNoiseSynthesizer(nn.Module):
 
         # 2. Generate White Noise
         audio_length = n_frames * hop_length
-        noise = torch.randn(batch_size, audio_length + n_fft, device=filter_magnitudes.device)
+        noise = torch.randn(batch_size, audio_length + n_fft, device=device)
         
-        # 3. Filter in Frequency Domain
-        noise_stft = torch.stft(
-            noise, 
-            n_fft=n_fft, 
-            hop_length=hop_length, 
-            win_length=n_fft, 
-            window=torch.hann_window(n_fft, device=noise.device),
-            return_complex=True,
-            center=True
-        ) 
-        
-        min_t = min(noise_stft.shape[2], H.shape[2])
-        noise_stft = noise_stft[..., :min_t]
-        H = H[..., :min_t]
-        
-        filtered_stft = noise_stft * H.abs()
-        
-        # 4. Inverse STFT
-        audio = torch.istft(
-            filtered_stft, 
-            n_fft=n_fft, 
-            hop_length=hop_length, 
-            win_length=n_fft, 
-            window=torch.hann_window(n_fft, device=noise.device),
-            center=True
-        )
+        # 3. CPU Bridge for STFT/Filtering/ISTFT if on MPS
+        # This avoids NotImplementedError and complex-multiplication crashes on MPS
+        if is_mps:
+            noise_cpu = noise.cpu()
+            H_cpu = H.cpu()
+            window_cpu = torch.hann_window(n_fft).cpu()
+            
+            # STFT on CPU
+            noise_stft = torch.stft(
+                noise_cpu, 
+                n_fft=n_fft, 
+                hop_length=hop_length, 
+                win_length=n_fft, 
+                window=window_cpu,
+                return_complex=True,
+                center=True
+            )
+            
+            min_t = min(noise_stft.shape[2], H_cpu.shape[2])
+            noise_stft = noise_stft[..., :min_t]
+            H_cpu = H_cpu[..., :min_t]
+            
+            # Multiply on CPU (safe)
+            filtered_stft = noise_stft * H_cpu.abs()
+            
+            # ISTFT on CPU
+            audio = torch.istft(
+                filtered_stft, 
+                n_fft=n_fft, 
+                hop_length=hop_length, 
+                win_length=n_fft, 
+                window=window_cpu,
+                center=True
+            ).to(device)
+        else:
+            # Standard path for CUDA/CPU
+            window = torch.hann_window(n_fft, device=device)
+            noise_stft = torch.stft(
+                noise, 
+                n_fft=n_fft, 
+                hop_length=hop_length, 
+                win_length=n_fft, 
+                window=window,
+                return_complex=True,
+                center=True
+            ) 
+            
+            min_t = min(noise_stft.shape[2], H.shape[2])
+            noise_stft = noise_stft[..., :min_t]
+            H = H[..., :min_t]
+            
+            filtered_stft = noise_stft * H.abs()
+            
+            audio = torch.istft(
+                filtered_stft, 
+                n_fft=n_fft, 
+                hop_length=hop_length, 
+                win_length=n_fft, 
+                window=window,
+                center=True
+            )
         
         target_len = n_frames * hop_length
         if audio.shape[-1] > target_len:

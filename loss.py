@@ -16,6 +16,23 @@ from typing import List
 # 3. We use the L1 distance on log-magnitudes to model the logarithmic nature of human hearing (Weber-Fechner law).
 # ==============================================================================
 
+def safe_stft_mag(x, n_fft, hop_length, win_length, window):
+    """
+    STFT that moves to CPU if on MPS, calculates magnitude, and returns to original device.
+    This avoids complex-tensor 'NotImplementedError' issues on MPS.
+    """
+    if x.device.type == 'mps':
+        device = x.device
+        x_cpu = x.cpu()
+        window_cpu = window.cpu()
+        stft_cpu = torch.stft(x_cpu, n_fft, hop_length, win_length, window_cpu, center=True, return_complex=True)
+        mag_cpu = torch.abs(stft_cpu)
+        return mag_cpu.to(device)
+    else:
+        stft = torch.stft(x, n_fft, hop_length, win_length, window, center=True, return_complex=True)
+        return torch.abs(stft)
+
+
 class MultiResolutionSTFTLoss(nn.Module):
     def __init__(self, FFT_sizes: List[int], hop_sizes: List[int], win_lengths: List[int], mag_loss_weight: float = 1.0):
         """
@@ -63,14 +80,10 @@ class SingleResolutionSTFTLoss(nn.Module):
         if y.dim() == 3:
             y = y.squeeze(1)
 
-        x_stft = torch.stft(x, self.fft_size, self.hop_size, self.win_length, 
-                            self.window, return_complex=True)
-        y_stft = torch.stft(y, self.fft_size, self.hop_size, self.win_length, 
-                            self.window, return_complex=True)
+        x_mag = safe_stft_mag(x, self.fft_size, self.hop_size, self.win_length, self.window)
+        y_mag = safe_stft_mag(y, self.fft_size, self.hop_size, self.win_length, self.window)
 
         eps = 1e-7
-        x_mag = torch.abs(x_stft)
-        y_mag = torch.abs(y_stft)
 
         # 1. Spectral Convergence Loss
         sc_loss = torch.norm(y_mag - x_mag, p="fro") / (torch.norm(y_mag, p="fro") + eps)
