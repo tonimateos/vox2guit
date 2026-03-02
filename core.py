@@ -30,9 +30,9 @@ class NeuralGuitarCore:
             print(f"--- Loading checkpoint: {checkpoint_path} ---")
             checkpoint = torch.load(checkpoint_path, map_location=self.device)
             if 'model_state_dict' in checkpoint:
-                self.model.load_state_dict(checkpoint['model_state_dict'])
+                self.model.load_state_dict(checkpoint['model_state_dict'], strict=False)
             else:
-                self.model.load_state_dict(checkpoint)
+                self.model.load_state_dict(checkpoint, strict=False)
             self.model.eval()
             print("--- Model loaded and ready! ---")
         else:

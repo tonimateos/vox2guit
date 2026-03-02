@@ -38,7 +38,6 @@ class NeuralGuitar(nn.Module):
         
         # --- The Brain (Decoder) ---
         # Input features: f0 (1) + loudness (1) = 2
-        self.input_norm = nn.LayerNorm(2)
         self.gru = nn.GRU(
             input_size=2, 
             hidden_size=self.hidden_size, 
@@ -55,7 +54,7 @@ class NeuralGuitar(nn.Module):
         
 
 
-    def forward(self, f0: torch.Tensor, loudness: torch.Tensor) -> torch.Tensor:
+    def forward(self, f0: torch.Tensor, loudness: torch.Tensor, return_controls: bool = False) -> torch.Tensor:
         """
         Args:
             f0 (torch.Tensor): Fundamental frequency in Hz [Batch, Time, 1]
@@ -71,7 +70,6 @@ class NeuralGuitar(nn.Module):
         log_f0 = (torch.log(f0 + 1e-7) - 4.8) / 2.0
         
         decoder_input = torch.cat([log_f0, loudness], dim=-1) # [B, T, 2]
-        decoder_input = self.input_norm(decoder_input)
         
         # 2. Decoder (GRU)
         # x: [B, T, hidden_size]
@@ -119,5 +117,14 @@ class NeuralGuitar(nn.Module):
         
         # Sum
         final_audio = harmonic_audio + noise_audio
-        
+
+        if return_controls:
+            return {
+                'audio': final_audio,
+                'harm_amps': harm_amps,
+                'noise_mags': noise_mags,
+                'harm_dist': harm_dist,
+                'log_f0': log_f0
+            }
+
         return final_audio
