@@ -48,6 +48,6 @@
             1200,
             2400
         ],
-        "mag_loss_weight": 2.0
+        "mag_loss_weight": 1.0
     }
 }
