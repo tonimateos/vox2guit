@@ -133,6 +133,16 @@ def train(args):
             torch.save(checkpoint_data, checkpoint_path)
             torch.save(checkpoint_data, latest_path) # Always keep a latest.pth for easy resume
             
+            # Rolling Checkpoint Deletion: Keep only the last 2 epoch-specific files
+            # Example: If we just saved epoch 10, delete epoch 8.
+            old_checkpoint_to_delete = os.path.join(args.checkpoint_dir, f"model_epoch_{epoch-1}.pth")
+            if epoch - 1 > 0 and os.path.exists(old_checkpoint_to_delete):
+                try:
+                    os.remove(old_checkpoint_to_delete)
+                    # print(f"--- Deleted old checkpoint: {old_checkpoint_to_delete} ---")
+                except Exception as e:
+                    print(f"Warning: Could not delete old checkpoint {old_checkpoint_to_delete}: {e}")
+            
             # Log Audio Sample periodically
             if (epoch + 1) % args.log_audio_every == 0:
                 # Normalize for W&B listening
