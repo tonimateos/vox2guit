@@ -48,6 +48,11 @@ class NeuralGuitar(nn.Module):
         )
         self.mlp = nn.Linear(self.hidden_size, self.n_harmonics + self.n_noise_bands)
         
+        # Stability: Small initial weights for the projection layer 
+        # to prevent NaN explosions at start of training
+        nn.init.normal_(self.mlp.weight, mean=0.0, std=0.02)
+        nn.init.constant_(self.mlp.bias, 0)
+        
 
 
     def forward(self, f0: torch.Tensor, loudness: torch.Tensor) -> torch.Tensor:
@@ -61,11 +66,12 @@ class NeuralGuitar(nn.Module):
         """
         # 1. Feature Preprocessing
         # Log-scale f0 helps the network linearize pitch space
-        # (We assume loudness is already log-scale/dB)
-        log_f0 = torch.log(f0 + 1e-7) / 6.0 # Basic normalization for ~0-1000Hz log range
+        # Guitar range is roughly 80Hz - 1000Hz. 
+        # log(130) is ~4.8. Let's center it.
+        log_f0 = (torch.log(f0 + 1e-7) - 4.8) / 2.0
         
         decoder_input = torch.cat([log_f0, loudness], dim=-1) # [B, T, 2]
-        # decoder_input = self.input_norm(decoder_input) # Optional
+        decoder_input = self.input_norm(decoder_input)
         
         # 2. Decoder (GRU)
         # x: [B, T, hidden_size]

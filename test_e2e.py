@@ -22,7 +22,7 @@ def run_test():
     core = NeuralGuitarCore(
         checkpoint_path="checkpoints/latest.pth",
         config_path="config.json",
-        config_name="tiny"
+        config_name="deep"
     )
     
     # 2. Paths

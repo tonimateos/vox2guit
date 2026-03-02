@@ -73,7 +73,7 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = No
         if torch.cuda.is_available():
             device = 'cuda'
         elif torch.backends.mps.is_available():
-            device = 'mps'
+            device = 'cpu' # Force CPU for torchcrepe on Mac/MPS to avoid instabilities
         else:
             device = 'cpu'
             

@@ -18,14 +18,17 @@ import numpy as np
 
 def resample_1d(x: torch.Tensor, target_len: int) -> torch.Tensor:
     """
-    MPS-friendly linear interpolation for 1D signals.
+    Linear interpolation for 1D signals. Moves to CPU for MPS to avoid NaNs.
     Args:
         x: [Batch, Channels, Time]
         target_len: target sequence length
     """
     if x.device.type == 'mps':
-        # MPS workaround: Use 2D bilinear interpolation which is implemented
-        return F.interpolate(x.unsqueeze(-1), size=(target_len, 1), mode='bilinear', align_corners=True).squeeze(-1)
+        device = x.device
+        # Move to CPU for stable interpolation
+        x_cpu = x.cpu()
+        out_cpu = F.interpolate(x_cpu, size=target_len, mode='linear', align_corners=True)
+        return out_cpu.to(device)
     else:
         return F.interpolate(x, size=target_len, mode='linear', align_corners=True)
 

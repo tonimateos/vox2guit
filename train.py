@@ -53,7 +53,7 @@ def train(args):
     # Auto-resume from latest.pth if no path provided
     if checkpoint_to_load is None:
         auto_latest = os.path.join(args.checkpoint_dir, "latest.pth")
-        if os.path.exists(auto_latest):
+        if os.path.exists(auto_latest) and not args.no_resume:
             checkpoint_to_load = auto_latest
             print(f"Auto-resuming from latest checkpoint: {checkpoint_to_load}")
 
@@ -91,12 +91,21 @@ def train(args):
                 # Forward
                 pred_audio = model(f0, loudness)
                 
+                # Check for NaNs
+                if torch.isnan(pred_audio).any():
+                    print(f"!!! NaN detected in prediction at Batch {batch_idx}. Skipping...")
+                    continue
+                
                 # Loss
                 loss = loss_fn(pred_audio, target_audio)
                 
                 # Backward
                 optimizer.zero_grad()
                 loss.backward()
+                
+                # Stability: Gradient Clipping for deep GRUs
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                
                 optimizer.step()
                 
                 epoch_loss += loss.item()

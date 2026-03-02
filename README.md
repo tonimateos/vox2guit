@@ -101,6 +101,15 @@ We use **W&B** for experiment tracking. It allows you to monitor loss and listen
     ./venv/bin/python train.py --data_dir data/processed/guitarset --batch_size 16 --epochs 100
     ```
 
+### 🧬 Data Pipeline: Batches & Epochs
+
+To understand the training dynamics, here is how the data is handled under the hood:
+
+- **The Dataset**: We use 360 preprocessed `.pt` files from GuitarSet. Each file contains a full recording.
+- **Random Cropping**: Every time the model accesses a file, it picks a **random 1-second segment** (16,000 samples). This ensures that the model sees different parts of the performances in every epoch, significantly increasing data diversity.
+- **Batches**: With a **Batch Size of 16**, the model processes 16 different 1-second segments simultaneously on your GPU. One epoch consists of approximately **23 batches** ($360 \div 16$).
+- **Epochs**: One epoch means the model has "visited" every one of the 360 files exactly once. Because of the random crop, training for 100 epochs means the model effectively hears **36,000 unique snippets** of guitar playing.
+
 ## 📈 Monitoring & Debugging
 
 Training a neural synthesizer is an iterative process. Here is how to keep an eye on your model's progress:

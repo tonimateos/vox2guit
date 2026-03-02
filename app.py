@@ -17,7 +17,7 @@ from core import NeuralGuitarCore
 core = NeuralGuitarCore(
     checkpoint_path="checkpoints/latest.pth",
     config_path="config.json",
-    config_name="tiny"
+    config_name="deep"
 )
 # Re-expose these for the UI plotting
 SAMPLE_RATE = core.config["sample_rate"]
