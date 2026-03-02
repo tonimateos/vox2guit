@@ -21,30 +21,32 @@ from synth import HarmonicSynthesizer, FilteredNoiseSynthesizer
 # ==============================================================================
 
 class NeuralGuitar(nn.Module):
-    def __init__(self, 
-                 n_harmonics: int = 101, 
-                 n_noise_bands: int = 65, 
-                 hidden_size: int = 512, 
-                 sample_rate: int = 16000,
-                 config: dict = None):
+    def __init__(self, config: dict):
         super().__init__()
         
-        # Override with config dict if provided
-        if config:
-            n_harmonics = config.get('n_harmonics', n_harmonics)
-            n_noise_bands = config.get('n_noise_bands', n_noise_bands)
-            hidden_size = config.get('hidden_size', hidden_size)
-            sample_rate = config.get('sample_rate', sample_rate)
+        # Mandatory parameters from config - will raise KeyError if missing
+        self.n_harmonics = config['n_harmonics']
+        self.n_noise_bands = config['n_noise_bands']
+        self.hidden_size = config['hidden_size']
+        self.sample_rate = config['sample_rate']
+        self.num_layers = config['num_layers']
+        self.dropout = config['dropout']
         
         # --- The Body (DSP) ---
-        self.harmonic_synth = HarmonicSynthesizer(n_harmonics, sample_rate)
-        self.noise_synth = FilteredNoiseSynthesizer(n_noise_bands)
+        self.harmonic_synth = HarmonicSynthesizer(self.n_harmonics, self.sample_rate)
+        self.noise_synth = FilteredNoiseSynthesizer(self.n_noise_bands)
         
         # --- The Brain (Decoder) ---
         # Input features: f0 (1) + loudness (1) = 2
         self.input_norm = nn.LayerNorm(2)
-        self.gru = nn.GRU(input_size=2, hidden_size=hidden_size, num_layers=1, batch_first=True)
-        self.mlp = nn.Linear(hidden_size, n_harmonics + n_noise_bands)
+        self.gru = nn.GRU(
+            input_size=2, 
+            hidden_size=self.hidden_size, 
+            num_layers=self.num_layers, 
+            batch_first=True,
+            dropout=self.dropout if self.num_layers > 1 else 0.0
+        )
+        self.mlp = nn.Linear(self.hidden_size, self.n_harmonics + self.n_noise_bands)
         
         self.n_harmonics = n_harmonics
         self.n_noise_bands = n_noise_bands
