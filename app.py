@@ -105,19 +105,15 @@ import sys
 training_process = None
 training_logs = ""
 
-def run_training(config_name, epochs, batch_size, hf_repo_id, training_password):
+def run_training(config_name, epochs, batch_size, hf_repo_id, training_password, resume_training):
     global training_process, training_logs
     
-    # --- Password Verification ---
-    # In HF Spaces, use Secrets. In local, you can set as ENV or blank.
+    # ... (password logic remains same) ...
     correct_password = os.environ.get("TRAINING_PASSWORD")
     if correct_password and training_password != correct_password:
         return "❌ Error: Invalid Training Password."
     elif not correct_password and training_password:
          return "❌ Error: TRAINING_PASSWORD secret not set on server."
-    elif not correct_password and not training_password:
-        # If no password is set on server and none provided, we allow it (local mode)
-        pass
 
     if training_process and training_process.poll() is None:
         return "Training is already running!"
@@ -130,6 +126,9 @@ def run_training(config_name, epochs, batch_size, hf_repo_id, training_password)
         "--epochs", str(epochs),
         "--batch_size", str(batch_size)
     ]
+
+    if not resume_training:
+        cmd.append("--no_resume")
     
     if hf_repo_id:
         cmd.extend(["--hf_repo_id", hf_repo_id, "--data_dir", "./data"])
@@ -225,6 +224,11 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
                         placeholder="Enter secret to start training",
                         type="password"
                     )
+                    resume_training = gr.Checkbox(
+                        label="Resume Training",
+                        value=True,
+                        info="Check to resume from the last saved checkpoint."
+                    )
                     
                     with gr.Row():
                         btn_train = gr.Button("Start Training", variant="primary")
@@ -241,7 +245,7 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
     
     btn_train.click(
         fn=run_training, 
-        inputs=[config_name, epochs, batch_size, repo_id, training_password], 
+        inputs=[config_name, epochs, batch_size, repo_id, training_password, resume_training], 
         outputs=status_out
     )
     btn_stop.click(fn=stop_training_proc, outputs=status_out)
