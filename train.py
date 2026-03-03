@@ -13,6 +13,9 @@ from data import NeuralGuitarDataset
 from loss import MultiResolutionSTFTLoss
 
 def train(args):
+    # Enable anomaly detection for deep debugging of NaNs/Infs
+    torch.autograd.set_detect_anomaly(True)
+    
     # Load external config
     with open(args.config_file, "r") as f:
         all_configs = json.load(f)
@@ -102,9 +105,9 @@ def train(args):
                 pred_audio = model(f0, loudness)
                 
                 # Check for NaNs
-                if torch.isnan(pred_audio).any():
-                    print(f"!!! NaN detected in prediction at Batch {batch_idx}. Skipping...")
-                    continue
+                if torch.isnan(pred_audio).any() or torch.isinf(pred_audio).any():
+                    print(f"!!! NaN/Inf detected in prediction at Batch {batch_idx}")
+                    raise RuntimeError("Weight collapse detected: Prediction contains NaN/Inf")
                 
                 # Loss
                 loss = loss_fn(pred_audio, target_audio)
