@@ -6,9 +6,11 @@ import os
 import glob
 import json
 
-def visualize(fpath):
+def visualize(fpath, show=True):
     print(f"Loading {fpath}...")
     data = torch.load(fpath)
+    # ... (rest of function remains same, adding show parameter to plt.show)
+    # I need to see the middle of the function to be precise
     
     f0 = data['f0'].squeeze().numpy()
     loudness = data['loudness'].squeeze().numpy()
@@ -56,19 +58,28 @@ def visualize(fpath):
     out_name = os.path.join(viz_dir, os.path.basename(fpath).replace('.pt', '_viz.png'))
     plt.savefig(out_name)
     print(f"Saved visualization to {out_name}")
-    plt.show()
+    if show:
+        plt.show()
+    plt.close() # Important to close figure when processing many files
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', type=str, help='Path to a .pt file')
+    parser.add_argument('--all', action='store_true', help='Visualize all files in data/processed/')
     args = parser.parse_args()
     
     if args.file:
         visualize(args.file)
+    elif args.all:
+        files = sorted(glob.glob('data/processed/*.pt'))
+        print(f"Found {len(files)} files. Starting batch visualization...")
+        for f in files:
+            visualize(f, show=False)
+        print("Done!")
     else:
         # Pick the first one in processed
-        files = glob.glob('data/processed/guitarset/*.pt')
+        files = sorted(glob.glob('data/processed/*.pt'))
         if files:
             visualize(files[0])
         else:
-            print("No .pt files found in data/processed/guitarset/")
+            print("No .pt files found in data/processed/")

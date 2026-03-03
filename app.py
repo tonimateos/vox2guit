@@ -161,6 +161,13 @@ def run_training(config_name, epochs, batch_size, hf_repo_id, training_password,
 def get_logs():
     return training_logs
 
+def get_latest_checkpoint():
+    """Returns the path to the latest checkpoint if it exists."""
+    path = "checkpoints/latest.pth"
+    if os.path.exists(path):
+        return path
+    return None
+
 def stop_training_proc():
     global training_process
     if training_process and training_process.poll() is None:
@@ -249,6 +256,13 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
         outputs=status_out
     )
     btn_stop.click(fn=stop_training_proc, outputs=status_out)
+
+    # --- Checkpoint Download ---
+    with gr.Column():
+        gr.Markdown("### 📥 Checkpoint Retrieval")
+        checkpoint_file = gr.File(label="Latest Checkpoint (.pth)")
+        btn_refresh = gr.Button("Refresh Download Link", variant="secondary")
+        btn_refresh.click(fn=get_latest_checkpoint, inputs=None, outputs=checkpoint_file)
 
 if __name__ == "__main__":
     print("--- Attempting to start Gradio 3.50.2 Server ---")
