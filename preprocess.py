@@ -68,6 +68,8 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = No
     # 2. Extract or Reuse Pitch
     if existing_f0 is not None:
         f0 = existing_f0
+        # Create a dummy confidence if reuse
+        confidence = torch.ones_like(f0).squeeze(-1) 
     else:
         # Check for CUDA, then MPS, then CPU
         if torch.cuda.is_available():
@@ -78,7 +80,7 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = No
             device = 'cpu'
             
         audio_16k = audio # Assuming SR=16k
-        f0, _ = torchcrepe.predict(
+        f0, confidence = torchcrepe.predict(
             audio_16k, 
             sample_rate=PREPROCESS_CONFIG["sample_rate"], 
             hop_length=hop_length, 
