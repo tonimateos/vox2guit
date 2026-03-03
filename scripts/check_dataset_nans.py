@@ -16,6 +16,27 @@ def check_file(fpath):
                 has_inf = torch.isinf(val).any().item()
                 if has_nan or has_inf:
                     results[key] = {"nan": has_nan, "inf": has_inf}
+                    
+                    # Log a few values around the first NaN/Inf found
+                    mask = torch.isnan(val) | torch.isinf(val)
+                    indices = mask.nonzero(as_tuple=True)
+                    if len(indices) > 0:
+                        first_idx = [idx[0].item() for idx in indices]
+                        # Handling multi-dimensional tensors (B, T, C)
+                        if val.dim() == 3:
+                            b, t, c = first_idx[0], first_idx[1], first_idx[2]
+                            t_start = max(0, t - 2)
+                            t_end = min(val.shape[1], t + 3)
+                            context_vals = val[b, t_start:t_end, c].tolist()
+                            results[key]["example_context"] = context_vals
+                            results[key]["example_index"] = [b, t, c]
+                        elif val.dim() == 2:
+                            b, t = first_idx[0], first_idx[1]
+                            t_start = max(0, t - 2)
+                            t_end = min(val.shape[1], t + 3)
+                            context_vals = val[b, t_start:t_end].tolist()
+                            results[key]["example_context"] = context_vals
+                            results[key]["example_index"] = [b, t]
         return results
     except Exception as e:
         return {"error": str(e)}
