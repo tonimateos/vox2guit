@@ -68,9 +68,22 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = No
     # 2. Extract or Reuse Pitch
     if existing_f0 is not None:
         f0 = existing_f0
-        # Create a dummy confidence if reuse
         confidence = torch.ones_like(f0).squeeze(-1) 
     else:
+        # --- Signal Hardening for Pitch Tracker ---
+        # 1. DC Removal & High-pass (Remove subsonic rumble < 80Hz)
+        # Using a simple high-pass to focus CREPE on the guitar strings
+        audio_center = audio - torch.mean(audio)
+        sos_hp = scipy.signal.butter(4, 80, btype='highpass', fs=PREPROCESS_CONFIG["sample_rate"], output='sos')
+        audio_hp = torch.from_numpy(scipy.signal.sosfilt(sos_hp, audio_center.numpy(), axis=-1).copy()).float()
+        
+        # 2. Peak Normalization
+        peak = torch.abs(audio_hp).max()
+        if peak > 1e-7:
+            audio_norm = audio_hp / peak
+        else:
+            audio_norm = audio_hp
+            
         # Check for CUDA, then MPS, then CPU
         if torch.cuda.is_available():
             device = 'cuda'
@@ -79,7 +92,7 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = No
         else:
             device = 'cpu'
             
-        audio_16k = audio # Assuming SR=16k
+        audio_16k = audio_norm # Using normalized audio
         f0, confidence = torchcrepe.predict(
             audio_16k, 
             sample_rate=PREPROCESS_CONFIG["sample_rate"], 
@@ -153,7 +166,10 @@ def preprocess_dataset(input_dir: str, output_dir: str, hop_length: int = None):
             if ceiling_hits > 0:
                 total_frames = f0.shape[1]
                 avg_conf = confidence.squeeze(0)[ceiling_hits_mask].mean().item()
-                print(f"\n[!] ALERT: {ceiling_hits} frames ({ceiling_hits/total_frames*100:.1f}%) hit ceiling in: {fpath} (Avg Confidence: {avg_conf:.3f})")
+                peak_val = audio.abs().max().item()
+                rms_val = torch.sqrt(torch.mean(audio**2)).item()
+                print(f"\n[!] ALERT: {ceiling_hits} frames ({ceiling_hits/total_frames*100:.1f}%) hit ceiling in: {fpath}")
+                print(f"    - Confidence: {avg_conf:.3f} | Signal Peak: {peak_val:.3f} | Signal RMS: {rms_val:.3f}")
             # Save
             num_frames = f0.shape[1]
             audio_target = audio[:, :num_frames * hop_length]
