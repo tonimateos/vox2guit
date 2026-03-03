@@ -13,7 +13,25 @@ class NeuralGuitarDataset(Dataset):
             data_dir (str): Directory containing .pt files.
             sequence_length (int): Length of audio segments in samples (Default: 1s at 16k).
         """
-        self.files = glob.glob(os.path.join(data_dir, '*.pt'))
+        raw_files = glob.glob(os.path.join(data_dir, '**/*.pt'), recursive=True)
+        self.files = []
+        
+        print(f"Validating {len(raw_files)} files...")
+        for f in raw_files:
+            try:
+                # Quick check for corruption
+                d = torch.load(f, map_location='cpu')
+                corrupted = False
+                for k in ['f0', 'loudness', 'audio']:
+                    if torch.isnan(d[k]).any() or torch.isinf(d[k]).any():
+                        corrupted = True
+                        break
+                if not corrupted:
+                    self.files.append(f)
+            except Exception as e:
+                print(f"Error loading {f}, skipping: {e}")
+                
+        print(f"Found {len(self.files)} valid .pt files.")
         self.sequence_length = sequence_length
         self.hop_length = 160 # Matches preprocess.py
         self.frames_per_seq = sequence_length // self.hop_length

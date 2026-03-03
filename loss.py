@@ -86,9 +86,23 @@ class SingleResolutionSTFTLoss(nn.Module):
         eps = 1e-7
 
         # 1. Spectral Convergence Loss
-        sc_loss = torch.norm(y_mag - x_mag, p="fro") / (torch.norm(y_mag, p="fro") + eps)
+        y_norm = torch.norm(y_mag, p="fro")
+        diff_norm = torch.norm(y_mag - x_mag, p="fro")
+        
+        if torch.isnan(y_norm) or torch.isinf(y_norm) or torch.isnan(diff_norm) or torch.isinf(diff_norm):
+            print(f"!!! NaN/Inf detected in Spectral Convergence calculation (FFT: {self.fft_size})")
+            raise RuntimeError("Stop training: NaN/Inf in spectral convergence")
+            
+        sc_loss = diff_norm / (y_norm + eps)
 
         # 2. Log-Magnitude Loss (Weighed by config)
-        log_loss = F.l1_loss(torch.log(y_mag + eps), torch.log(x_mag + eps))
+        log_y = torch.log(y_mag + eps)
+        log_x = torch.log(x_mag + eps)
+        
+        if torch.isnan(log_y).any() or torch.isinf(log_y).any() or torch.isnan(log_x).any() or torch.isinf(log_x).any():
+            print(f"!!! NaN/Inf detected in Log-Magnitude calculation (FFT: {self.fft_size})")
+            raise RuntimeError("Stop training: NaN/Inf in log-magnitude loss")
+            
+        log_loss = F.l1_loss(log_y, log_x)
 
         return sc_loss + self.mag_loss_weight * log_loss

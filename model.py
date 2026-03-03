@@ -31,6 +31,7 @@ class NeuralGuitar(nn.Module):
         self.sample_rate = config['sample_rate']
         self.num_layers = config['num_layers']
         self.dropout = config['dropout']
+        self.use_noise = config['use_noise']
         
         # --- The Body (DSP) ---
         self.harmonic_synth = HarmonicSynthesizer(self.n_harmonics, self.sample_rate)
@@ -113,10 +114,13 @@ class NeuralGuitar(nn.Module):
         
         # 5. Synthesis
         harmonic_audio = self.harmonic_synth(f0, harm_amps)
-        noise_audio = self.noise_synth(noise_mags)
         
-        # Sum
-        final_audio = harmonic_audio + noise_audio
+        if self.use_noise:
+            noise_audio = self.noise_synth(noise_mags)
+            final_audio = harmonic_audio + noise_audio
+        else:
+            noise_audio = torch.zeros_like(harmonic_audio)
+            final_audio = harmonic_audio
 
         if return_controls:
             return {

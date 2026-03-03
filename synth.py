@@ -18,19 +18,18 @@ import numpy as np
 
 def resample_1d(x: torch.Tensor, target_len: int) -> torch.Tensor:
     """
-    Linear interpolation for 1D signals. Moves to CPU for MPS to avoid NaNs.
+    Linear interpolation for 1D signals.
+    Moves to CPU for MPS because linear interpolation is not implemented for MPS yet.
     Args:
         x: [Batch, Channels, Time]
         target_len: target sequence length
     """
     if x.device.type == 'mps':
         device = x.device
-        # Move to CPU for stable interpolation
         x_cpu = x.cpu()
         out_cpu = F.interpolate(x_cpu, size=target_len, mode='linear', align_corners=True)
         return out_cpu.to(device)
-    else:
-        return F.interpolate(x, size=target_len, mode='linear', align_corners=True)
+    return F.interpolate(x, size=target_len, mode='linear', align_corners=True)
 
 class HarmonicSynthesizer(nn.Module):
     def __init__(self, n_harmonics: int = 100, sample_rate: int = 16000, hop_length: int = 160):
@@ -50,11 +49,15 @@ class HarmonicSynthesizer(nn.Module):
         harmonic_indices = torch.arange(1, self.n_harmonics + 1, device=f0.device).float() 
         frequencies = f0_up * harmonic_indices.unsqueeze(0).unsqueeze(0)
 
-        # Anti-Aliasing Mask: Zero out any harmonic that exceeds Nyquist (SR/2).
-        # This prevents metallic 'ghost' frequencies and aliasing artifacts.
+        # Anti-Aliasing Mask
         mask = (frequencies < self.sample_rate / 2).float()
 
         phases = 2 * np.pi * torch.cumsum(frequencies / self.sample_rate, dim=1)
+        
+        if torch.isnan(phases).any() or torch.isinf(phases).any():
+            print("!!! NaN/Inf detected in phase accumulation (HarmonicSynthesizer)")
+            raise RuntimeError("Stop process: NaN/Inf in phases")
+            
         sin_waves = torch.sin(phases)
         
         # Apply mask to amplitudes
