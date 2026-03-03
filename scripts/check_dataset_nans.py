@@ -80,7 +80,7 @@ def main():
             
         print("\nExample issues (first 5):")
         for f, issue in corrupted_files[:5]:
-            print(f"  {os.path.basename(f)}: {issue}")
+            print(f"  {f}: {issue}")
     else:
         print("\nNo NaNs or Infs detected in the dataset. All good!")
 
