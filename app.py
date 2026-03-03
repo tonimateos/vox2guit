@@ -97,37 +97,133 @@ def process_audio(input_path):
     
     return out_path, plot_path
 
-# --- Gradio UI ---
-with gr.Blocks() as demo:
-    gr.HTML("<h1 style='text-align: center;'>🎸 Neural Guitar: DDSP Timbre Transfer</h1>")
-    gr.Markdown("""
-    Convert any monophonic audio (whistling, humming, singing) into a realistic electric guitar sound!
+import subprocess
+import threading
+import sys
+
+# --- Training Logic ---
+training_process = None
+training_logs = ""
+
+def run_training(config_name, epochs, batch_size, hf_repo_id):
+    global training_process, training_logs
+    if training_process and training_process.poll() is None:
+        return "Training is already running!"
     
-    ---
-    """)
+    training_logs = "Starting training...\n"
     
-    with gr.Row():
-        with gr.Column():
-            with gr.Tabs():
-                with gr.TabItem("🎤 Record"):
-                    audio_mic = gr.Audio(source="microphone", type="filepath", label="Record your melody")
-                    btn_mic = gr.Button("Generate Guitar from Recording", variant="primary")
-                with gr.TabItem("📁 Upload"):
-                    audio_file = gr.Audio(source="upload", type="filepath", label="Upload a .wav file")
-                    btn_file = gr.Button("Generate Guitar from File", variant="primary")
+    cmd = [
+        sys.executable, "train.py",
+        "--config_name", config_name,
+        "--epochs", str(epochs),
+        "--batch_size", str(batch_size)
+    ]
+    
+    if hf_repo_id:
+        cmd.extend(["--hf_repo_id", hf_repo_id, "--data_dir", "./data"])
+    
+    try:
+        # Use stdbuf or similar if needed for real-time logs, 
+        # but basic subprocess should work with bufsize=1
+        training_process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            env=os.environ.copy()
+        )
         
-        with gr.Column():
-            output_audio = gr.Audio(label="Guitar Resynthesis")
-            output_viz = gr.Image(label="Feature Visualization (Waveform, Pitch & Loudness)")
-            gr.Markdown("### Instructions")
+        def monitor():
+            global training_logs
+            for line in iter(training_process.stdout.readline, ""):
+                training_logs += line
+            training_process.stdout.close()
+            training_process.wait()
+            training_logs += "\n--- Training Finished ---"
+
+        threading.Thread(target=monitor, daemon=True).start()
+        return "Process started. Check logs below."
+    except Exception as e:
+        return f"Error starting training: {e}"
+
+def get_logs():
+    return training_logs
+
+def stop_training_proc():
+    global training_process
+    if training_process and training_process.poll() is None:
+        training_process.terminate()
+        return "Training stopped."
+    return "No training process running."
+
+# --- Gradio UI ---
+with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as demo:
+    gr.HTML("<h1 style='text-align: center;'>🎸 Neural Guitar: DDSP Timbre Transfer</h1>")
+    
+    with gr.Tabs():
+        with gr.Tab("Synthesizer"):
             gr.Markdown("""
-            1. Use one of the tabs on the left.
-            2. Click the corresponding 'Generate' button.
-            3. The AI will process the pitch and loudness to resynthesize it as a guitar.
+            Convert any monophonic audio (whistling, humming, singing) into a realistic electric guitar sound!
             """)
+            
+            with gr.Row():
+                with gr.Column():
+                    with gr.Tabs():
+                        with gr.TabItem("🎤 Record"):
+                            audio_mic = gr.Audio(source="microphone", type="filepath", label="Record your melody")
+                            btn_mic = gr.Button("Generate Guitar from Recording", variant="primary")
+                        with gr.TabItem("📁 Upload"):
+                            audio_file = gr.Audio(source="upload", type="filepath", label="Upload a .wav file")
+                            btn_file = gr.Button("Generate Guitar from File", variant="primary")
+                
+                with gr.Column():
+                    output_audio = gr.Audio(label="Guitar Resynthesis")
+                    output_viz = gr.Image(label="Feature Visualization (Waveform, Pitch & Loudness)")
+                    gr.Markdown("### Instructions")
+                    gr.Markdown("""
+                    1. Use one of the tabs on the left.
+                    2. Click the corresponding 'Generate' button.
+                    3. The AI will process the pitch and loudness to resynthesize it as a guitar.
+                    """)
+
+        with gr.Tab("Training 🚀"):
+            gr.Markdown("""
+            ## Cloud Training Interface
+            Use this tab to train a new model on a Hugging Face GPU. 
+            *Ensure you have set `WANDB_API_KEY` and `HF_TOKEN` in your Space's Secrets.*
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    config_name = gr.Dropdown(
+                        choices=["tiny", "standard", "deep", "tiny_no_noise", "deep_no_noise"],
+                        value="deep_no_noise",
+                        label="Model Configuration"
+                    )
+                    epochs = gr.Slider(minimum=1, maximum=200, value=50, step=1, label="Epochs")
+                    batch_size = gr.Slider(minimum=4, maximum=64, value=16, step=4, label="Batch Size")
+                    repo_id = gr.Textbox(
+                        placeholder="username/repo-name",
+                        label="HF Dataset Repo ID (Optional)",
+                        info="If blank, uses local data."
+                    )
+                    
+                    with gr.Row():
+                        btn_train = gr.Button("Start Training", variant="primary")
+                        btn_stop = gr.Button("Stop Training", variant="stop")
+                
+                with gr.Column():
+                    status_out = gr.Textbox(label="Status")
+                    log_viewer = gr.Textbox(label="Training Logs", lines=15, max_lines=25, interactive=False)
+                    # Poll logs every 2 seconds
+                    demo.load(fn=get_logs, inputs=None, outputs=log_viewer, every=2)
 
     btn_mic.click(fn=process_audio, inputs=audio_mic, outputs=[output_audio, output_viz])
     btn_file.click(fn=process_audio, inputs=audio_file, outputs=[output_audio, output_viz])
+    
+    btn_train.click(fn=run_training, inputs=[config_name, epochs, batch_size, repo_id], outputs=status_out)
+    btn_stop.click(fn=stop_training_proc, outputs=status_out)
 
 if __name__ == "__main__":
     print("--- Attempting to start Gradio 3.50.2 Server ---")

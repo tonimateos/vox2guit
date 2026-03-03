@@ -101,6 +101,22 @@ We use **W&B** for experiment tracking. It allows you to monitor loss and listen
     ./venv/bin/python train.py --data_dir data/processed/guitarset --batch_size 16 --epochs 100
     ```
 
+### 5. Cloud Training (Hugging Face)
+For faster training on cloud GPUs (A10G/T4), you can stream your data from the Hugging Face Hub.
+
+1.  **Set Token**: Create a [Hugging Face Write Token](https://huggingface.co/settings/tokens) and export it:
+    ```bash
+    export HF_TOKEN=your_token_here
+    ```
+2.  **Upload Data**: Run the upload script to create a private dataset:
+    ```bash
+    ./venv/bin/python scripts/upload_to_hf.py --repo_id username/vox2guit-data
+    ```
+3.  **Train Remote**:
+    ```bash
+    ./venv/bin/python train.py --config_name deep_no_noise --hf_repo_id username/vox2guit-data
+    ```
+
 ### 🧬 Data Pipeline: Batches & Epochs
 
 To understand the training dynamics, here is how the data is handled under the hood:
@@ -129,7 +145,8 @@ Once training starts, W&B provides a real-time dashboard at the URL printed in y
 You don't need to do anything special to resume. If you stop the script and run the training command again, it will:
 1. Detect `checkpoints/latest.pth`.
 2. Automatically load the latest weights and optimizer state.
-3. Continue training from the exact epoch where it was interrupted.
+3. **New**: It will automatically detect if you have updated the `learning_rate` or `mag_loss_weight` in `config.json` and apply the new values to the resumed optimizer.
+4. Continue training from the exact epoch where it was interrupted.
 
 ---
 
@@ -191,4 +208,6 @@ Using a high resolution like **4096** is crucial for capturing the distinct, tig
 - `setup_env.sh`: Environment reproducibility script.
 - `test_e2e.py`: Deterministic regression test suite.
 - `tests/`: Directory for reference audio assets (Tracked via LFS).
-- `config.json`: Centralized configuration for model architectures (e.g., "tiny").
+- `config.json`: Centralized configuration for model architectures and hyperparameters.
+- `scripts/upload_to_hf.py`: Utility for migrating training data to the cloud.
+- `scripts/check_dataset_nans.py`: Integrity verification tool for processed features.
