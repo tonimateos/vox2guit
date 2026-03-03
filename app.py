@@ -105,8 +105,20 @@ import sys
 training_process = None
 training_logs = ""
 
-def run_training(config_name, epochs, batch_size, hf_repo_id):
+def run_training(config_name, epochs, batch_size, hf_repo_id, training_password):
     global training_process, training_logs
+    
+    # --- Password Verification ---
+    # In HF Spaces, use Secrets. In local, you can set as ENV or blank.
+    correct_password = os.environ.get("TRAINING_PASSWORD")
+    if correct_password and training_password != correct_password:
+        return "❌ Error: Invalid Training Password."
+    elif not correct_password and training_password:
+         return "❌ Error: TRAINING_PASSWORD secret not set on server."
+    elif not correct_password and not training_password:
+        # If no password is set on server and none provided, we allow it (local mode)
+        pass
+
     if training_process and training_process.poll() is None:
         return "Training is already running!"
     
@@ -208,6 +220,11 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
                         label="HF Dataset Repo ID (Optional)",
                         info="If blank, uses local data."
                     )
+                    training_password = gr.Textbox(
+                        label="Training Password",
+                        placeholder="Enter secret to start training",
+                        type="password"
+                    )
                     
                     with gr.Row():
                         btn_train = gr.Button("Start Training", variant="primary")
@@ -222,7 +239,11 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
     btn_mic.click(fn=process_audio, inputs=audio_mic, outputs=[output_audio, output_viz])
     btn_file.click(fn=process_audio, inputs=audio_file, outputs=[output_audio, output_viz])
     
-    btn_train.click(fn=run_training, inputs=[config_name, epochs, batch_size, repo_id], outputs=status_out)
+    btn_train.click(
+        fn=run_training, 
+        inputs=[config_name, epochs, batch_size, repo_id, training_password], 
+        outputs=status_out
+    )
     btn_stop.click(fn=stop_training_proc, outputs=status_out)
 
 if __name__ == "__main__":
