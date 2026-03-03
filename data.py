@@ -7,12 +7,24 @@ class NeuralGuitarDataset(Dataset):
     """
     Dataset for loading preprocessed Neural Guitar features (f0, loudness, audio).
     """
-    def __init__(self, data_dir: str, sequence_length: int = 16000):
+    def __init__(self, data_dir: str, sequence_length: int = 16000, repo_id: str = None):
         """
         Args:
             data_dir (str): Directory containing .pt files.
             sequence_length (int): Length of audio segments in samples (Default: 1s at 16k).
+            repo_id (str): Optional Hugging Face repo ID to download data from.
         """
+        if repo_id:
+            from huggingface_hub import snapshot_download
+            print(f"[*] Downloading dataset from HF Hub: {repo_id}")
+            # This will only download if there are changes or not present
+            data_dir = snapshot_download(
+                repo_id=repo_id, 
+                repo_type="dataset", 
+                local_dir=data_dir,
+                allow_patterns="*.pt"
+            )
+
         raw_files = glob.glob(os.path.join(data_dir, '**/*.pt'), recursive=True)
         self.files = []
         

@@ -34,7 +34,11 @@ def train(args):
     print(f"Using device: {device}")
     
     # 2. Data
-    dataset = NeuralGuitarDataset(args.data_dir, sequence_length=args.seq_len)
+    dataset = NeuralGuitarDataset(
+        args.data_dir, 
+        sequence_length=args.seq_len, 
+        repo_id=args.hf_repo_id
+    )
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
     
     # 3. Model
@@ -186,6 +190,7 @@ if __name__ == "__main__":
     parser.add_argument('--config_name', type=str, default='tiny')
     parser.add_argument('--log_audio_every', type=int, default=5)
     parser.add_argument('--no_resume', action='store_true', help='Force start from scratch')
+    parser.add_argument('--hf_repo_id', type=str, default=None, help='Hugging Face repo ID to pull data from')
     
     args = parser.parse_args()
     train(args)

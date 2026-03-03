@@ -10,4 +10,6 @@ wandb>=0.15.0
 gradio==3.50.2
 pydantic<2.0.0
 fastapi<0.110.0
-huggingface-hub<0.26.0
+huggingface-hub>=0.20.0
+datasets>=2.15.0
+accelerate>=0.25.0

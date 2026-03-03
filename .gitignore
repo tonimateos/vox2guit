@@ -18,6 +18,8 @@ checkpoints/
 data/
 wandb/
 output/
+.env*
+
 # But DO track reference wavs
 !tests/reference_input.wav
 !tests/golden_output.wav
