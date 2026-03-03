@@ -22,8 +22,9 @@ def upload_to_hf(repo_id, folder_path, path_in_repo="data"):
             path_in_repo=path_in_repo,
             repo_id=repo_id,
             repo_type="dataset",
+            delete_patterns="*.pt", # This ensures files deleted locally are removed from remote
         )
-        print("[+] Upload successful!")
+        print("[+] Upload successful! (Remote mirrored to local)")
         print(f"[+] View your data at: https://huggingface.co/datasets/{repo_id}")
     except Exception as e:
         print(f"[!] Error during upload: {e}")
