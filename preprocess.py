@@ -95,8 +95,9 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = No
     min_len = min(f0.shape[1], loudness.shape[1])
     f0 = f0[:, :min_len, :]
     loudness = loudness[:, :min_len, :]
+    confidence = confidence[:, :min_len] # [1, Frames]
     
-    return f0, loudness
+    return f0, loudness, confidence
 
 
 def preprocess_dataset(input_dir: str, output_dir: str, hop_length: int = None):
@@ -134,10 +135,23 @@ def preprocess_dataset(input_dir: str, output_dir: str, hop_length: int = None):
             resampler = torchaudio.transforms.Resample(sr, PREPROCESS_CONFIG["sample_rate"])
             audio = resampler(audio)
             
-        # Extract
+            if False:
+                # Save resampled diagnostic wav
+                diag_dir = "data/diagnostic_wav"
+                os.makedirs(diag_dir, exist_ok=True)
+                diag_path = os.path.join(diag_dir, os.path.basename(fpath))
+                torchaudio.save(diag_path, audio, PREPROCESS_CONFIG["sample_rate"])
         try:
-            f0, loudness = extract_features(audio, PREPROCESS_CONFIG["sample_rate"], hop_length=hop_length, existing_f0=existing_f0)
+            f0, loudness, confidence = extract_features(audio, PREPROCESS_CONFIG["sample_rate"], hop_length=hop_length, existing_f0=existing_f0)
             
+            # Diagnostic: Log if we hit the pitch search ceiling (2000Hz default)
+            max_f0_allowed = PREPROCESS_CONFIG["pitch_max_freq"]
+            ceiling_hits_mask = (f0 >= 0.8 * max_f0_allowed).squeeze(0).squeeze(-1) # [Frames]
+            ceiling_hits = ceiling_hits_mask.sum().item()
+            if ceiling_hits > 0:
+                total_frames = f0.shape[1]
+                avg_conf = confidence.squeeze(0)[ceiling_hits_mask].mean().item()
+                print(f"\n[!] ALERT: {ceiling_hits} frames ({ceiling_hits/total_frames*100:.1f}%) hit ceiling in: {fpath} (Avg Confidence: {avg_conf:.3f})")
             # Save
             num_frames = f0.shape[1]
             audio_target = audio[:, :num_frames * hop_length]
