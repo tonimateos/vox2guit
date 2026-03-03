@@ -38,12 +38,13 @@ def train(args):
     model = NeuralGuitar(config=net_config).to(device)
     
     # 4. Optimizer & Loss
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    initial_lr = args.lr if args.lr is not None else net_config.get("learning_rate", 1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=initial_lr)
     loss_fn = MultiResolutionSTFTLoss(
         FFT_sizes=net_config["fft_sizes"],
         hop_sizes=net_config["hop_sizes"],
         win_lengths=net_config["win_lengths"],
-        mag_loss_weight=net_config.get("mag_loss_weight", 1.0)
+        mag_loss_weight=net_config["mag_loss_weight"]
     ).to(device)
     
     # 5. Resume logic
@@ -67,6 +68,15 @@ def train(args):
             model.load_state_dict(state_dict)
             if 'optimizer_state_dict' in checkpoint and 'model_state_dict' in checkpoint:
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                
+                # Check if we should override the LR from config (if it's different from checkpoint)
+                # or from command line argument
+                new_lr = args.lr if args.lr is not None else net_config.get("learning_rate", 1e-4)
+                for param_group in optimizer.param_groups:
+                    if param_group['lr'] != new_lr:
+                        print(f"Updating Learning Rate from {param_group['lr']} to {new_lr}")
+                        param_group['lr'] = new_lr
+            
             start_epoch = checkpoint.get('epoch', 0) if isinstance(checkpoint, dict) else 0
             print(f"Success! Resuming from epoch {start_epoch}")
         except RuntimeError as e:
@@ -167,7 +177,7 @@ if __name__ == "__main__":
     parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume from')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=16)
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=None, help='Override learning rate (default from config)')
     parser.add_argument('--seq_len', type=int, default=16000)
     parser.add_argument('--config_file', type=str, default='config.json')
     parser.add_argument('--config_name', type=str, default='tiny')

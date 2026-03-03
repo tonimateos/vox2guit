@@ -9,6 +9,7 @@
         "use_noise": true,
         "sample_rate": 16000,
         "hop_length": 160,
+        "learning_rate": 1e-4,
         "fft_sizes": [
             512,
             1024,
@@ -36,6 +37,7 @@
         "use_noise": true,
         "sample_rate": 16000,
         "hop_length": 160,
+        "learning_rate": 1e-4,
         "fft_sizes": [
             512,
             1024,
@@ -66,6 +68,7 @@
         "n_noise_bands": 129,
         "sample_rate": 16000,
         "hop_length": 160,
+        "learning_rate": 1e-4,
         "fft_sizes": [
             512,
             1024,
@@ -90,12 +93,13 @@
         "description": "Harmonic-only model (no noise component)",
         "hidden_size": 512,
         "n_harmonics": 101,
-        "n_noise_bands": 0,
+        "n_noise_bands": 65,
         "num_layers": 1,
         "dropout": 0.0,
         "use_noise": false,
         "sample_rate": 16000,
         "hop_length": 160,
+        "learning_rate": 1e-4,
         "fft_sizes": [
             512,
             1024,
@@ -110,6 +114,37 @@
             240,
             600,
             1200
+        ],
+        "mag_loss_weight": 1.0
+    },
+    "deep_no_noise": {
+        "description": "Deep multi-layer GRU (no noise component)",
+        "hidden_size": 1024,
+        "num_layers": 3,
+        "dropout": 0.1,
+        "use_noise": false,
+        "n_harmonics": 101,
+        "n_noise_bands": 129,
+        "sample_rate": 16000,
+        "hop_length": 160,
+        "learning_rate": 3e-5,
+        "fft_sizes": [
+            512,
+            1024,
+            2048,
+            4096
+        ],
+        "hop_sizes": [
+            120,
+            240,
+            480,
+            960
+        ],
+        "win_lengths": [
+            240,
+            600,
+            1200,
+            2400
         ],
         "mag_loss_weight": 1.0
     }
