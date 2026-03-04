@@ -34,10 +34,11 @@ def train(args):
     print(f"Using device: {device}")
     
     # 2. Data
+    hf_repo_id = args.hf_repo_id.strip() if args.hf_repo_id else None
     dataset = NeuralGuitarDataset(
         args.data_dir, 
         sequence_length=args.seq_len, 
-        repo_id=args.hf_repo_id
+        repo_id=hf_repo_id
     )
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
     

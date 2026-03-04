@@ -131,6 +131,7 @@ def run_training(config_name, epochs, batch_size, hf_repo_id, training_password,
         cmd.append("--no_resume")
     
     if hf_repo_id:
+        hf_repo_id = hf_repo_id.strip()
         cmd.extend(["--hf_repo_id", hf_repo_id, "--data_dir", "./data"])
     
     try:
@@ -267,6 +268,7 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
 if __name__ == "__main__":
     print("--- Attempting to start Gradio 3.50.2 Server ---")
     try:
+        demo.queue() # Enable queue for polling/generators
         demo.launch(
             share=True,
             show_error=True

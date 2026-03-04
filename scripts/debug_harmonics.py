@@ -29,7 +29,7 @@ def debug_harmonics(input_wav, checkpoint_path, config_path, config_name, output
     
     with torch.no_grad():
         from preprocess import extract_features
-        f0, loudness = extract_features(audio_torch, core.config["sample_rate"], hop_length=core.config["hop_length"])
+        f0, loudness, confidence = extract_features(audio_torch, core.config["sample_rate"], hop_length=core.config["hop_length"])
         f0 = f0.to(core.device)
         loudness = loudness.to(core.device)
         

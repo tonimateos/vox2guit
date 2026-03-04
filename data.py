@@ -15,6 +15,7 @@ class NeuralGuitarDataset(Dataset):
             repo_id (str): Optional Hugging Face repo ID to download data from.
         """
         if repo_id:
+            repo_id = repo_id.strip()
             from huggingface_hub import snapshot_download
             print(f"[*] Downloading dataset from HF Hub: {repo_id}")
             # This will only download if there are changes or not present

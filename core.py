@@ -48,7 +48,7 @@ class NeuralGuitarCore:
         
         with torch.no_grad():
             # 2. Feature Extraction
-            f0, loudness = extract_features(audio_torch, self.config["sample_rate"], hop_length=self.config["hop_length"])
+            f0, loudness, confidence = extract_features(audio_torch, self.config["sample_rate"], hop_length=self.config["hop_length"])
             f0 = f0.to(self.device)
             loudness = loudness.to(self.device)
             
