@@ -15,7 +15,16 @@ def test_neural_guitar():
     
     # 1. Instantiate Model
     print("[1/3] Instantiating Model...")
-    model = NeuralGuitar(n_harmonics=50, n_noise_bands=100, hidden_size=128)
+    config = {
+        "n_harmonics": 50,
+        "n_noise_bands": 100,
+        "hidden_size": 128,
+        "sample_rate": 16000,
+        "num_layers": 1,
+        "dropout": 0.0,
+        "use_noise": True
+    }
+    model = NeuralGuitar(config=config)
     print("      Model created successfully.")
     
     # 2. Create Dummy Inputs
@@ -35,11 +44,15 @@ def test_neural_guitar():
         print(f"      Output Audio Shape: {audio.shape}")
         
         # Verify Loss
-        loss_fn = MultiResolutionSTFTLoss()
+        loss_fn = MultiResolutionSTFTLoss(
+            FFT_sizes=[512, 1024],
+            hop_sizes=[128, 256],
+            win_lengths=[512, 1024]
+        )
         # Create dummy target matching output
         target = torch.randn_like(audio)
-        loss = loss_fn(audio, target)
-        print(f"      Loss Computed: {loss.item()}")
+        loss, sc, log = loss_fn(audio, target)
+        print(f"      Loss Computed: {loss.item()} (sc: {sc.item()}, log: {log.item()})")
         
         print("\n[SUCCESS] Project components verified OK.")
         

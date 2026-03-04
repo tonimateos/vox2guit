@@ -115,7 +115,7 @@ def train(args):
                     raise RuntimeError("Weight collapse detected: Prediction contains NaN/Inf")
                 
                 # Loss
-                loss = loss_fn(pred_audio, target_audio)
+                loss, sc_loss, log_loss = loss_fn(pred_audio, target_audio)
                 
                 # Backward
                 optimizer.zero_grad()
@@ -130,7 +130,11 @@ def train(args):
                 
                 # Log to W&B
                 if batch_idx % 10 == 0:
-                    wandb.log({"train_loss": loss.item()})
+                    wandb.log({
+                        "train_loss": loss.item(),
+                        "sc_loss": sc_loss.item(),
+                        "log_loss": log_loss.item()
+                    })
                 
                 pbar.set_postfix({"loss": loss.item()})
                 

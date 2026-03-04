@@ -51,15 +51,23 @@ class MultiResolutionSTFTLoss(nn.Module):
         for fs, hs, wl in zip(FFT_sizes, hop_sizes, win_lengths):
             self.loss_objs.append(SingleResolutionSTFTLoss(fs, hs, wl, mag_loss_weight))
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> tuple:
         """
         Calculate the multi-resolution spectral loss.
+        Returns: (total_loss, avg_sc_loss, avg_log_loss)
         """
         total_loss = 0.0
+        total_sc = 0.0
+        total_log = 0.0
+        
         for loss_obj in self.loss_objs:
-            total_loss += loss_obj(x, y)
+            sc, log = loss_obj(x, y)
+            total_sc += sc
+            total_log += log
+            total_loss += (sc + log)
             
-        return total_loss / len(self.loss_objs)
+        n = len(self.loss_objs)
+        return total_loss / n, total_sc / n, total_log / n
 
 
 class SingleResolutionSTFTLoss(nn.Module):
@@ -104,5 +112,6 @@ class SingleResolutionSTFTLoss(nn.Module):
             raise RuntimeError("Stop training: NaN/Inf in log-magnitude loss")
             
         log_loss = F.l1_loss(log_y, log_x)
+        weighted_log_loss = self.mag_loss_weight * log_loss
 
-        return sc_loss + self.mag_loss_weight * log_loss
+        return sc_loss, weighted_log_loss
