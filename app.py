@@ -216,8 +216,8 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
             with gr.Row():
                 with gr.Column():
                     config_name = gr.Dropdown(
-                        choices=["tiny", "standard", "deep", "tiny_no_noise", "deep_no_noise"],
-                        value="deep_no_noise",
+                        choices=["tiny", "standard", "deep", "extra_deep", "tiny_no_noise", "deep_no_noise", "extra_deep_no_noise"],
+                        value="extra_deep",
                         label="Model Configuration"
                     )
                     epochs = gr.Slider(minimum=1, maximum=200, value=50, step=1, label="Epochs")
