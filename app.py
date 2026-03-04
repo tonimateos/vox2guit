@@ -4,6 +4,7 @@ import os
 import numpy as np
 import librosa
 import matplotlib.pyplot as plt
+from datetime import datetime
 from scipy.io import wavfile
 from model import NeuralGuitar
 from preprocess import extract_features
@@ -163,11 +164,13 @@ def get_logs():
     return training_logs
 
 def get_latest_checkpoint():
-    """Returns the path to the latest checkpoint if it exists."""
+    """Returns the path to the latest checkpoint and its modification date."""
     path = "checkpoints/latest.pth"
     if os.path.exists(path):
-        return path
-    return None
+        mtime = os.path.getmtime(path)
+        date_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
+        return path, f"**Last Updated:** {date_str}"
+    return None, "**Status:** No checkpoint found."
 
 def stop_training_proc():
     global training_process
@@ -262,8 +265,9 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
     with gr.Column():
         gr.Markdown("### 📥 Checkpoint Retrieval")
         checkpoint_file = gr.File(label="Latest Checkpoint (.pth)")
+        checkpoint_info = gr.Markdown("**Status:** Click refresh to check for updates.")
         btn_refresh = gr.Button("Refresh Download Link", variant="secondary")
-        btn_refresh.click(fn=get_latest_checkpoint, inputs=None, outputs=checkpoint_file)
+        btn_refresh.click(fn=get_latest_checkpoint, inputs=None, outputs=[checkpoint_file, checkpoint_info])
 
 if __name__ == "__main__":
     print("--- Attempting to start Gradio 3.50.2 Server ---")
