@@ -52,7 +52,8 @@ def train(args):
         FFT_sizes=net_config["fft_sizes"],
         hop_sizes=net_config["hop_sizes"],
         win_lengths=net_config["win_lengths"],
-        mag_loss_weight=net_config["mag_loss_weight"]
+        mag_loss_weight=net_config["mag_loss_weight"],
+        eps=net_config.get("eps", 1e-7)
     ).to(device)
     
     # 5. Resume logic

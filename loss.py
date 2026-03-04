@@ -34,7 +34,7 @@ def safe_stft_mag(x, n_fft, hop_length, win_length, window):
 
 
 class MultiResolutionSTFTLoss(nn.Module):
-    def __init__(self, FFT_sizes: List[int], hop_sizes: List[int], win_lengths: List[int], mag_loss_weight: float = 1.0):
+    def __init__(self, FFT_sizes: List[int], hop_sizes: List[int], win_lengths: List[int], mag_loss_weight: float = 1.0, eps: float = 1e-7):
         """
         Multi-Resolution Short-Time Fourier Transform Loss.
         
@@ -43,13 +43,15 @@ class MultiResolutionSTFTLoss(nn.Module):
             hop_sizes (List[int]): List of hop sizes corresponding to FFT sizes.
             win_lengths (List[int]): List of window lengths corresponding to FFT sizes.
             mag_loss_weight (float): Multiplier for the log-magnitude loss.
+            eps (float): Epsilon for numerical stability (log/division).
         """
         super().__init__()
         assert len(FFT_sizes) == len(hop_sizes) == len(win_lengths)
+        self.eps = eps
         
         self.loss_objs = nn.ModuleList()
         for fs, hs, wl in zip(FFT_sizes, hop_sizes, win_lengths):
-            self.loss_objs.append(SingleResolutionSTFTLoss(fs, hs, wl, mag_loss_weight))
+            self.loss_objs.append(SingleResolutionSTFTLoss(fs, hs, wl, mag_loss_weight, eps))
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> tuple:
         """
@@ -71,12 +73,13 @@ class MultiResolutionSTFTLoss(nn.Module):
 
 
 class SingleResolutionSTFTLoss(nn.Module):
-    def __init__(self, fft_size: int, hop_size: int, win_length: int, mag_loss_weight: float = 1.0):
+    def __init__(self, fft_size: int, hop_size: int, win_length: int, mag_loss_weight: float = 1.0, eps: float = 1e-7):
         super().__init__()
         self.fft_size = fft_size
         self.hop_size = hop_size
         self.win_length = win_length
         self.mag_loss_weight = mag_loss_weight
+        self.eps = eps
         self.register_buffer('window', torch.hann_window(win_length))
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -91,8 +94,6 @@ class SingleResolutionSTFTLoss(nn.Module):
         x_mag = safe_stft_mag(x, self.fft_size, self.hop_size, self.win_length, self.window)
         y_mag = safe_stft_mag(y, self.fft_size, self.hop_size, self.win_length, self.window)
 
-        eps = 1e-7
-
         # 1. Spectral Convergence Loss
         y_norm = torch.norm(y_mag, p="fro")
         diff_norm = torch.norm(y_mag - x_mag, p="fro")
@@ -101,11 +102,11 @@ class SingleResolutionSTFTLoss(nn.Module):
             print(f"!!! NaN/Inf detected in Spectral Convergence calculation (FFT: {self.fft_size})")
             raise RuntimeError("Stop training: NaN/Inf in spectral convergence")
             
-        sc_loss = diff_norm / (y_norm + eps)
+        sc_loss = diff_norm / (y_norm + self.eps)
 
         # 2. Log-Magnitude Loss (Weighed by config)
-        log_y = torch.log(y_mag + eps)
-        log_x = torch.log(x_mag + eps)
+        log_y = torch.log(y_mag + self.eps)
+        log_x = torch.log(x_mag + self.eps)
         
         if torch.isnan(log_y).any() or torch.isinf(log_y).any() or torch.isnan(log_x).any() or torch.isinf(log_x).any():
             print(f"!!! NaN/Inf detected in Log-Magnitude calculation (FFT: {self.fft_size})")

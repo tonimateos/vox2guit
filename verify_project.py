@@ -22,7 +22,8 @@ def test_neural_guitar():
         "sample_rate": 16000,
         "num_layers": 1,
         "dropout": 0.0,
-        "use_noise": True
+        "use_noise": True,
+        "eps": 1e-7
     }
     model = NeuralGuitar(config=config)
     print("      Model created successfully.")
@@ -47,7 +48,8 @@ def test_neural_guitar():
         loss_fn = MultiResolutionSTFTLoss(
             FFT_sizes=[512, 1024],
             hop_sizes=[128, 256],
-            win_lengths=[512, 1024]
+            win_lengths=[512, 1024],
+            eps=config["eps"]
         )
         # Create dummy target matching output
         target = torch.randn_like(audio)
